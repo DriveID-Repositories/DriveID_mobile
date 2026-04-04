@@ -36,6 +36,11 @@ dependencies:
   cupertino_icons: ^1.0.8
   mobile_scanner: ^7.2.0
   supabase_flutter: ^2.8.3
+  url_launcher: ^6.2.6
+  app_links: ^6.3.2
+  http: ^1.2.2
+  jwt_decoder: ^2.0.1
+  flutter_secure_storage: ^9.2.2
 
 dev_dependencies:
   flutter_test:

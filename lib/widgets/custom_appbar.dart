@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   @override
@@ -12,11 +13,12 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
 }
 
 class _CustomAppBarState extends State<CustomAppBar> {
-  String _userName = "Peter Mwale";
-  String _userRole = "Traffic Officer";
+  final String _userName = "Peter Mwale";
+  final String _userRole = "Traffic Officer";
 
-  void _handleLogout() {
-    // Clear token and redirect to login
+  void _handleLogout() async {
+    await AuthService.logout();
+    // Redirect to login
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
   }
 
@@ -52,11 +54,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                 child: const CircleAvatar(
                   radius: 18,
                   backgroundColor: AppTheme.gold,
-                  child: Icon(
-                    Icons.person,
-                    color: Colors.black,
-                    size: 20,
-                  ),
+                  child: Icon(Icons.person, color: Colors.black, size: 20),
                 ),
               ),
               onSelected: (value) {
@@ -64,45 +62,43 @@ class _CustomAppBarState extends State<CustomAppBar> {
                   _handleLogout();
                 }
               },
-              itemBuilder: (BuildContext context) => [
-                PopupMenuItem<String>(
-                  enabled: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _userRole,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.textSecondary,
-                        ),
+              itemBuilder:
+                  (BuildContext context) => [
+                    PopupMenuItem<String>(
+                      enabled: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _userRole,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _userName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _userName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem<String>(
+                      value: 'logout',
+                      child: Row(
+                        children: const [
+                          Icon(Icons.logout, size: 18, color: Colors.red),
+                          SizedBox(width: 12),
+                          Text('Logout', style: TextStyle(color: Colors.red)),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                const PopupMenuDivider(),
-                PopupMenuItem<String>(
-                  value: 'logout',
-                  child: Row(
-                    children: const [
-                      Icon(Icons.logout, size: 18, color: Colors.red),
-                      SizedBox(width: 12),
-                      Text(
-                        'Logout',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                  ],
               color: AppTheme.cardDark,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),

@@ -165,7 +165,7 @@ class _OffenseFormState extends State<OffenseForm> {
                           ),
                         )
                         : DropdownButtonFormField<String>(
-                          value:
+                          initialValue:
                               _offenseTypeController.text.isEmpty
                                   ? null
                                   : _offenseTypeController.text,
