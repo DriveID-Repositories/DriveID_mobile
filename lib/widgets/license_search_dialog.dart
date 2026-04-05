@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/license.dart';
+import '../models/TrafficOfficerModels/license.dart';
 import '../theme/app_theme.dart';
 
 class LicenseSearchDialog extends StatefulWidget {

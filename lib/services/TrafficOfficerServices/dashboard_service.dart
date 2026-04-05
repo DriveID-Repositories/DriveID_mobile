@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/supabase_config.dart';
-import '../models/dashboard_stats.dart';
-import '../models/license.dart';
+import 'package:driveid_app/models/TrafficOfficerModels/license.dart';
+import 'package:driveid_app/config/supabase_config.dart';
+import 'package:driveid_app/models/TrafficOfficerModels/dashboard_stats.dart';
 
 class DashboardService {
   final SupabaseClient _client = SupabaseConfig.client;

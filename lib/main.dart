@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
 import 'config/supabase_config.dart';
-import 'Screens/dashboard_screen.dart';
-import 'Screens/login_screen.dart';
-import 'services/auth_service.dart';
+import 'Screens/Traffic_officerScreens/dashboard_screen.dart';
+import 'Screens/Traffic_officerScreens/login_screen.dart';
+import 'services/TrafficOfficerServices/auth_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -89,8 +89,8 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.darkTheme,
       initialRoute: '/',
       routes: {
-        '/': (context) => const AuthWrapper(),
-        '/login': (context) => const LoginScreen(),
+        '/': (context) => const LoginScreen(),
+        '/login': (context) => const DashboardScreen(),
       },
     );
   }

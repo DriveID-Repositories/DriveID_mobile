@@ -1,8 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/supabase_config.dart';
-import '../models/offense.dart';
-import '../models/license.dart';
+import 'package:driveid_app/config/supabase_config.dart';
+import 'package:driveid_app/models/TrafficOfficerModels/license.dart';
 import 'dashboard_service.dart';
+import '../../models/TrafficOfficerModels/offense.dart';
 
 class OffenseService {
   final SupabaseClient _client = SupabaseConfig.client;
