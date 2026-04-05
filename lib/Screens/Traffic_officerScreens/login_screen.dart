@@ -1,8 +1,11 @@
+// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/TrafficOfficerServices/auth_service.dart';
 import '../../theme/app_theme.dart';
+import '../../models/app_user.dart';
 import 'dashboard_screen.dart';
+import '../../DriverComponent/screens/driver_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,22 +16,46 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
-  bool _isPasswordLogin = false;
+  bool _isPasswordLogin = true; // Default to password login for mobile
   
-  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  // Email/Password Login (Real authentication)
+  Future<void> _signInWithPassword() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showSnackBar('Please enter email and password', AppTheme.warning);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final user = await AuthService.signInWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (user != null && mounted) {
+        _navigateByRole(user);
+      }
+    } catch (e) {
+      _showSnackBar(e.toString(), AppTheme.error);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // eSignet Login
   Future<void> _signInWithESignet() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final url = AuthService.getAuthorizationUrl();
@@ -39,27 +66,30 @@ class _LoginScreenState extends State<LoginScreen> {
         throw 'Could not launch $url';
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error launching browser: $e'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      _showSnackBar('Error launching browser: $e', AppTheme.error);
+      setState(() => _isLoading = false);
     }
   }
 
-  void _signInWithPassword() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+  void _navigateByRole(AppUser user) {
+    if (user.isDriver) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DriverDashboard()),
+      );
+    } else if (user.isTrafficOfficer) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+    } else {
+      _showSnackBar('Invalid role for mobile app', AppTheme.error);
+    }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: color),
     );
   }
 
@@ -108,19 +138,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Expanded(
                       child: _buildToggleButton(
-                        text: 'eSignet',
-                        icon: Icons.security_outlined,
-                        isActive: !_isPasswordLogin,
-                        onTap: () => setState(() => _isPasswordLogin = false),
+                        text: 'Password',
+                        icon: Icons.lock_outline,
+                        isActive: _isPasswordLogin,
+                        onTap: () => setState(() => _isPasswordLogin = true),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildToggleButton(
-                        text: 'Password',
-                        icon: Icons.lock_outline,
-                        isActive: _isPasswordLogin,
-                        onTap: () => setState(() => _isPasswordLogin = true),
+                        text: 'eSignet',
+                        icon: Icons.security_outlined,
+                        isActive: !_isPasswordLogin,
+                        onTap: () => setState(() => _isPasswordLogin = false),
                       ),
                     ),
                   ],
@@ -128,119 +158,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
 
                 // Login Form
-                if (!_isPasswordLogin)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _signInWithESignet,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.gold,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                              ),
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.security, size: 20, color: Colors.black),
-                                SizedBox(width: 12),
-                                Text(
-                                  'Sign in with eSignet',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
-                                ),
-                              ],
-                            ),
-                    ),
-                  )
+                if (_isPasswordLogin)
+                  _buildPasswordLoginForm()
                 else
-                  Column(
-                    children: [
-                      TextField(
-                        controller: _usernameController,
-                        style: const TextStyle(color: AppTheme.textPrimary),
-                        decoration: const InputDecoration(
-                          labelText: 'Username',
-                          hintText: 'Enter your username',
-                          prefixIcon: Icon(Icons.person_outline),
-                          labelStyle: TextStyle(color: AppTheme.textSecondary),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        style: const TextStyle(color: AppTheme.textPrimary),
-                        decoration: const InputDecoration(
-                          labelText: 'Password',
-                          hintText: 'Enter your password',
-                          prefixIcon: Icon(Icons.lock_outline),
-                          labelStyle: TextStyle(color: AppTheme.textSecondary),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      
-                      // Demo Note
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.warning.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, color: AppTheme.warning, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Demo mode: Any username/password works',
-                                style: TextStyle(fontSize: 12, color: AppTheme.warning),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: _signInWithPassword,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.gold,
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.login, size: 20, color: Colors.black),
-                              SizedBox(width: 12),
-                              Text(
-                                'Login',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                  _buildESignetLoginButton(),
+
+                const SizedBox(height: 24),
+                
+                // Help Text
+                Text(
+                  'Contact your licensing office to get an account',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
                   ),
+                ),
               ],
             ),
           ),
@@ -294,6 +226,108 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordLoginForm() {
+    return Column(
+      children: [
+        TextField(
+          controller: _emailController,
+          style: const TextStyle(color: AppTheme.textPrimary),
+          decoration: const InputDecoration(
+            labelText: 'Email',
+            hintText: 'Enter your email',
+            prefixIcon: Icon(Icons.email_outlined),
+            labelStyle: TextStyle(color: AppTheme.textSecondary),
+          ),
+          keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _passwordController,
+          obscureText: true,
+          style: const TextStyle(color: AppTheme.textPrimary),
+          decoration: const InputDecoration(
+            labelText: 'Password',
+            hintText: 'Enter your password',
+            prefixIcon: Icon(Icons.lock_outline),
+            labelStyle: TextStyle(color: AppTheme.textSecondary),
+          ),
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _signInWithPassword,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.gold,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                    ),
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.login, size: 20, color: Colors.black),
+                      SizedBox(width: 12),
+                      Text(
+                        'Login',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildESignetLoginButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _signInWithESignet,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.gold,
+          foregroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                ),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.security, size: 20, color: Colors.black),
+                  SizedBox(width: 12),
+                  Text(
+                    'Sign in with eSignet',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+                  ),
+                ],
+              ),
       ),
     );
   }

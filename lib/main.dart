@@ -89,8 +89,8 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.darkTheme,
       initialRoute: '/',
       routes: {
-        '/': (context) => const DashboardScreen(),
-        '/login': (context) => const LoginScreen(),
+        '/': (context) => const LoginScreen(),
+        '/login': (context) => const DashboardScreen(),
       },
     );
   }
