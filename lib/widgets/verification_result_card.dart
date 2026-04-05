@@ -13,94 +13,106 @@ class VerificationResultCard extends StatelessWidget {
   });
 
   Color _getStatusColor() {
-    if (license.isRevoked) return Colors.red;
-    if (license.isExpired) return Colors.orange;
-    return Colors.green;
+    if (license.isRevoked) return AppTheme.error;
+    if (license.isExpired) return AppTheme.warning;
+    return AppTheme.success;
   }
 
   String _getStatusText() {
-    if (license.isRevoked) return 'Revoked';
-    if (license.isExpired) return 'Expired';
-    return 'Valid';
+    if (license.isRevoked) return 'REVOKED';
+    if (license.isExpired) return 'EXPIRED';
+    return 'VERIFIED';
+  }
+
+  String _getStatusMessage() {
+    if (license.isRevoked) return 'License has been revoked';
+    if (license.isExpired) return 'License has expired';
+    return 'License is valid and active';
   }
 
   @override
   Widget build(BuildContext context) {
     final statusColor = _getStatusColor();
+    final isExpired = license.isExpired || license.isRevoked;
+    final isValid = !isExpired;
 
     return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: statusColor.withOpacity(0.3), width: 1.5),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: statusColor.withOpacity(0.5),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.15),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: statusColor.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Status Header Bar
+          // Gradient Ribbon Header (without the number)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(15),
-                topRight: Radius.circular(15),
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  statusColor,
+                  statusColor.withOpacity(0.85),
+                ],
               ),
-              border: Border(
-                bottom: BorderSide(color: statusColor.withOpacity(0.2)),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(23),
+                topRight: Radius.circular(23),
               ),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    license.isRevoked
+                        ? Icons.block_rounded
+                        : license.isExpired
+                        ? Icons.hourglass_empty_rounded
+                        : Icons.verified_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      license.isRevoked
-                          ? Icons.block
-                          : license.isExpired
-                          ? Icons.schedule
-                          : Icons.verified,
-                      color: statusColor,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
                     Text(
-                      'License ${_getStatusText()}',
+                      _getStatusText(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _getStatusMessage(),
                       style: TextStyle(
-                        color: statusColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 11,
                       ),
                     ),
                   ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: statusColor.withOpacity(0.4)),
-                  ),
-                  child: Text(
-                    _getStatusText(),
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -108,36 +120,62 @@ class VerificationResultCard extends StatelessWidget {
 
           // Main Content
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(22),
             child: Column(
               children: [
-                // Profile Section - Horizontal Layout
+                // Profile Section with RECTANGULAR Avatar
                 Row(
                   children: [
-                    // Avatar
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: AppTheme.gold.withOpacity(0.15),
-                      child:
-                          license.profilePictureUrl != null
-                              ? ClipOval(
-                                child: Image.network(
+                    // RECTANGULAR Avatar with Status Border
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [statusColor, statusColor.withOpacity(0.6)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: statusColor.withOpacity(0.4),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Container(
+                        width: 76,
+                        height: 76,
+                        margin: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.background,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: license.profilePictureUrl != null
+                              ? Image.network(
                                   license.profilePictureUrl!,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(
-                                      Icons.person,
-                                      color: AppTheme.gold,
-                                      size: 50,
+                                    return Center(
+                                      child: Icon(
+                                        Icons.person_outline_rounded,
+                                        color: statusColor,
+                                        size: 40,
+                                      ),
                                     );
                                   },
+                                )
+                              : Center(
+                                  child: Icon(
+                                    Icons.person_outline_rounded,
+                                    color: statusColor,
+                                    size: 40,
+                                  ),
                                 ),
-                              )
-                              : const Icon(
-                                Icons.person,
-                                color: AppTheme.gold,
-                                size: 50,
-                              ),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 20),
 
@@ -147,32 +185,47 @@ class VerificationResultCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            license.ownerName,
+                            license.ownerName.toUpperCase(),
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: AppTheme.textPrimary,
+                              letterSpacing: 0.8,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
+                              horizontal: 14,
+                              vertical: 6,
                             ),
                             decoration: BoxDecoration(
                               color: AppTheme.gold.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              license.licenseType,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.gold,
-                                fontWeight: FontWeight.w600,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: AppTheme.gold.withOpacity(0.4),
                               ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.verified_rounded,
+                                  color: AppTheme.gold,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  license.licenseType,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppTheme.gold,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -181,75 +234,118 @@ class VerificationResultCard extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 20),
-                const Divider(color: Colors.white10, height: 1),
-                const SizedBox(height: 20),
-
-                // License Details
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    // Expiry Date
-                    Column(
-                      children: [
-                        Icon(
-                          Icons.event,
-                          color: AppTheme.textSecondary,
-                          size: 20,
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Expiry Date',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 11,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          license.expiryDate.toString().split(' ')[0],
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                license.isExpired ? Colors.red : Colors.white,
-                          ),
-                        ),
-                      ],
+                const SizedBox(height: 28),
+                
+                // Info Grid
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppTheme.background.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.1),
                     ),
-
-                    // Status Validity
-                    Column(
-                      children: [
-                        Icon(
-                          Icons.timer_outlined,
-                          color: AppTheme.textSecondary,
-                          size: 20,
+                  ),
+                  child: Row(
+                    children: [
+                      // LEFT: Expiry Date
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isValid 
+                                    ? AppTheme.success.withOpacity(0.15)
+                                    : AppTheme.error.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(
+                                Icons.calendar_today_rounded,
+                                color: isValid ? AppTheme.success : AppTheme.error,
+                                size: 26,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              "EXPIRY DATE",
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _formatDate(license.expiryDate),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: isValid ? AppTheme.textPrimary : AppTheme.error,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Validity',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 11,
-                          ),
+                      ),
+                      
+                      // Divider
+                      Container(
+                        height: 60,
+                        width: 1,
+                        color: Colors.white.withOpacity(0.15),
+                      ),
+                      
+                      // RIGHT: License Number
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.gold.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(
+                                Icons.credit_card_rounded,
+                                color: AppTheme.gold,
+                                size: 26,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              "LICENSE NO.",
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              child: Text(
+                                _formatLicenseNumber(license.registerNumber),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.gold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          license.daysUntilExpiry.split(' ')[0],
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                license.isExpired ? Colors.red : Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
 
                 // Record Offense Button
                 SizedBox(
@@ -257,32 +353,57 @@ class VerificationResultCard extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: onRecordOffense,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.withOpacity(0.15),
-                      foregroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: AppTheme.error,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(
-                          color: Colors.red.withOpacity(0.4),
-                          width: 1.5,
-                        ),
+                        borderRadius: BorderRadius.circular(18),
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.warning_rounded, size: 18),
-                        SizedBox(width: 10),
-                        Text(
-                          'Record Offense',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            letterSpacing: 0.3,
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.warning_amber_rounded,
+                            size: 22,
                           ),
                         ),
+                        const SizedBox(width: 14),
+                        const Text(
+                          'RECORD OFFENSE',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 20,
+                        ),
                       ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Help text
+                Center(
+                  child: Text(
+                    "Recording an offense will generate a fine notice",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textSecondary.withOpacity(0.8),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -292,5 +413,21 @@ class VerificationResultCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'N/A';
+    final year = date.year;
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  String _formatLicenseNumber(String number) {
+    // Format: 20260104008973 -> 2026 0104 0089 73
+    if (number.length == 14) {
+      return '${number.substring(0, 4)} ${number.substring(4, 8)} ${number.substring(8, 12)} ${number.substring(12)}';
+    }
+    return number;
   }
 }
