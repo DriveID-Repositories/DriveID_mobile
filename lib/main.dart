@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
-import 'config/supabase_config.dart';
-import 'Screens/Traffic_officerScreens/dashboard_screen.dart';
-import 'Screens/Traffic_officerScreens/login_screen.dart';
-import 'services/TrafficOfficerServices/auth_service.dart';
-import 'theme/app_theme.dart';
+import 'Traffic_officer/config/supabase_config.dart';
+import 'Traffic_officer/Screens/Traffic_officerScreens/dashboard_screen.dart';
+import 'Traffic_officer/Screens/Traffic_officerScreens/login_screen.dart';
+import 'Traffic_officer/services/TrafficOfficerServices/auth_service.dart';
+import 'Traffic_officer/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -89,8 +89,8 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.darkTheme,
       initialRoute: '/',
       routes: {
-        '/': (context) => const LoginScreen(),
-        '/login': (context) => const DashboardScreen(),
+        '/': (context) => LoginScreen(),
+        '/login': (context) => DashboardScreen(),
       },
     );
   }
@@ -124,6 +124,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
     if (_isLoggedIn == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    return _isLoggedIn! ? const DashboardScreen() : const LoginScreen();
+    return _isLoggedIn! ? DashboardScreen() : LoginScreen();
   }
 }

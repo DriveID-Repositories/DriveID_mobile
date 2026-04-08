@@ -32,10 +32,10 @@ class LicensePreviewCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: statusColor.withAlpha(77), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.1),
+            color: statusColor.withAlpha(26),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -52,7 +52,7 @@ class LicensePreviewCard extends StatelessWidget {
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
               ),
-              color: statusColor.withOpacity(0.15),
+              color: statusColor.withAlpha(38),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

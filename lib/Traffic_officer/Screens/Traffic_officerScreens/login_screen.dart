@@ -5,7 +5,7 @@ import '../../services/TrafficOfficerServices/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../models/app_user.dart';
 import 'dashboard_screen.dart';
-import '../../DriverComponent/screens/driver_dashboard.dart';
+import '../../../DriverComponent/screens/driver_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppTheme.gold.withOpacity(0.15),
+                    color: AppTheme.gold.withAlpha(38),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -201,7 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: AppTheme.gold.withOpacity(0.3),
+                    color: AppTheme.gold.withAlpha(77),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),

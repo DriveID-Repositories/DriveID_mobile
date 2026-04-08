@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:driveid_app/config/supabase_config.dart';
-import 'package:driveid_app/models/TrafficOfficerModels/license.dart';
+import '../../config/supabase_config.dart';
+import '../../models/TrafficOfficerModels/license.dart';
 import 'dashboard_service.dart';
 import '../../models/TrafficOfficerModels/offense.dart';
 
@@ -36,33 +36,24 @@ class OffenseService {
   // Get offense types
   Future<List<OffenseType>> getOffenseTypes() async {
     try {
-      print('🔍 Fetching offense types from Supabase...');
       final response = await _client
           .from('offense_types')
           .select()
           .order('label');
 
-      print('✅ Response received: $response');
-
       final offenseTypes = (response as List<dynamic>?) ?? [];
-      print('📦 Total offense types: ${offenseTypes.length}');
 
       if (offenseTypes.isEmpty) {
-        print('⚠️ No offense types found in database');
         return [];
       }
 
       final mapped =
           offenseTypes.map((json) {
-            print('  → Parsing: ${json['label']} (Fine: ${json['fine']})');
             return OffenseType.fromJson(json as Map<String, dynamic>);
           }).toList();
 
-      print('✨ Successfully loaded ${mapped.length} offense types');
       return mapped;
-    } catch (e, stackTrace) {
-      print('❌ Error fetching offense types: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
       return []; // Return empty list instead of throwing
     }
   }

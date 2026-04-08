@@ -59,7 +59,7 @@ class _VerifyScreenState extends State<VerifyScreen>
         });
       }
     } catch (e) {
-      print('Error loading offense types: $e');
+      // Error loading offense types
     }
   }
 
@@ -209,7 +209,7 @@ class _VerifyScreenState extends State<VerifyScreen>
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.gold.withOpacity(0.2),
+                  color: AppTheme.gold.withAlpha(51),
                   blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),
@@ -245,7 +245,7 @@ class _VerifyScreenState extends State<VerifyScreen>
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.gold.withOpacity(0.5),
+                            color: AppTheme.gold.withAlpha(128),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
@@ -324,7 +324,7 @@ class _VerifyScreenState extends State<VerifyScreen>
                           radius: 0.8,
                           colors: [
                             Colors.transparent,
-                            Colors.black.withOpacity(0.3),
+                            Colors.black.withAlpha(77),
                           ],
                           stops: const [0.6, 1.0],
                         ),
@@ -393,7 +393,7 @@ class _VerifyScreenState extends State<VerifyScreen>
             border: Border.all(color: AppTheme.cardBorder),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.gold.withOpacity(0.1),
+                color: AppTheme.gold.withAlpha(26),
                 blurRadius: 10,
               ),
             ],
@@ -493,7 +493,7 @@ class _VerifyScreenState extends State<VerifyScreen>
             Icon(
               Icons.search_off_rounded,
               size: 64,
-              color: AppTheme.error.withOpacity(0.6),
+              color: AppTheme.error.withAlpha(153),
             ),
             const SizedBox(height: 16),
             Text(
@@ -532,7 +532,7 @@ class _VerifyScreenState extends State<VerifyScreen>
             child: GestureDetector(
               onTap: () => setState(() => _showOffenseForm = false),
               child: Container(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withAlpha(153),
                 child: GestureDetector(
                   onTap: () {},
                   child: DraggableScrollableSheet(

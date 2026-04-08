@@ -70,9 +70,11 @@ class _OffensesScreenState extends State<OffensesScreen> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load data: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load data: $e')),
+        );
+      }
     }
   }
 
@@ -157,9 +159,11 @@ class _OffensesScreenState extends State<OffensesScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to record offense: $e'), backgroundColor: AppTheme.error),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to record offense: $e'), backgroundColor: AppTheme.error),
+        );
+      }
     } finally {
       setState(() => _isSubmitting = false);
     }
@@ -233,7 +237,7 @@ class _OffensesScreenState extends State<OffensesScreen> {
                 Container(
                   decoration: BoxDecoration(
                     gradient: isRecording 
-                        ? LinearGradient(colors: [AppTheme.error, AppTheme.error.withOpacity(0.8)])
+                        ? LinearGradient(colors: [AppTheme.error, AppTheme.error.withAlpha(204)])
                         : LinearGradient(colors: [AppTheme.gold, AppTheme.goldLight]),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -439,10 +443,10 @@ class _OffensesScreenState extends State<OffensesScreen> {
       decoration: BoxDecoration(
         color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ribbonColor.withOpacity(0.3), width: 1),
+        border: Border.all(color: ribbonColor.withAlpha(77), width: 1),
         boxShadow: [
           BoxShadow(
-            color: ribbonColor.withOpacity(0.1),
+            color: ribbonColor.withAlpha(26),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -457,7 +461,7 @@ class _OffensesScreenState extends State<OffensesScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [ribbonColor, ribbonColor.withOpacity(0.8)],
+                colors: [ribbonColor, ribbonColor.withAlpha(204)],
               ),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(15),
@@ -510,7 +514,7 @@ class _OffensesScreenState extends State<OffensesScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.gold.withOpacity(0.1),
+                        color: AppTheme.gold.withAlpha(26),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.person_outline, color: AppTheme.gold, size: 20),
@@ -549,7 +553,7 @@ class _OffensesScreenState extends State<OffensesScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppTheme.error.withOpacity(0.1),
+                        color: AppTheme.error.withAlpha(26),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(Icons.warning_amber_rounded, color: AppTheme.error, size: 16),

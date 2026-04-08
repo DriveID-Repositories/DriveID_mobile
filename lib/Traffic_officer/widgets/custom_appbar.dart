@@ -19,7 +19,9 @@ class _CustomAppBarState extends State<CustomAppBar> {
   void _handleLogout() async {
     await AuthService.logout();
     // Redirect to login
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+    if (mounted) {
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+    }
   }
 
   @override
