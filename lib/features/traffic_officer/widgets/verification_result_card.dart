@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/TrafficOfficerModels/license.dart';
-import '../theme/app_theme.dart';
+import '../models/license.dart';
+import '../../../core/theme/app_theme.dart';
 
 class VerificationResultCard extends StatelessWidget {
   final License license;
@@ -42,12 +42,12 @@ class VerificationResultCard extends StatelessWidget {
         color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: statusColor.withOpacity(0.5),
+          color: statusColor.withAlpha(128),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.3),
+            color: statusColor.withAlpha(77),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -65,7 +65,7 @@ class VerificationResultCard extends StatelessWidget {
                 end: Alignment.centerRight,
                 colors: [
                   statusColor,
-                  statusColor.withOpacity(0.85),
+                  statusColor.withAlpha(217),
                 ],
               ),
               borderRadius: const BorderRadius.only(
@@ -78,7 +78,7 @@ class VerificationResultCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
+                    color: Colors.white.withAlpha(64),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
@@ -108,7 +108,7 @@ class VerificationResultCard extends StatelessWidget {
                     Text(
                       _getStatusMessage(),
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withAlpha(230),
                         fontSize: 11,
                       ),
                     ),
@@ -132,12 +132,12 @@ class VerificationResultCard extends StatelessWidget {
                       height: 80,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [statusColor, statusColor.withOpacity(0.6)],
+                          colors: [statusColor, statusColor.withAlpha(153)],
                         ),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: statusColor.withOpacity(0.4),
+                            color: statusColor.withAlpha(102),
                             blurRadius: 12,
                             spreadRadius: 2,
                           ),
@@ -202,10 +202,10 @@ class VerificationResultCard extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: AppTheme.gold.withOpacity(0.15),
+                              color: AppTheme.gold.withAlpha(38),
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
-                                color: AppTheme.gold.withOpacity(0.4),
+                                color: AppTheme.gold.withAlpha(102),
                               ),
                             ),
                             child: Row(
@@ -240,10 +240,10 @@ class VerificationResultCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: AppTheme.background.withOpacity(0.5),
+                    color: AppTheme.background.withAlpha(128),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withAlpha(26),
                     ),
                   ),
                   child: Row(
@@ -256,8 +256,8 @@ class VerificationResultCard extends StatelessWidget {
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: isValid 
-                                    ? AppTheme.success.withOpacity(0.15)
-                                    : AppTheme.error.withOpacity(0.15),
+                                    ? AppTheme.success.withAlpha(38)
+                                    : AppTheme.error.withAlpha(38),
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Icon(
@@ -293,7 +293,7 @@ class VerificationResultCard extends StatelessWidget {
                       Container(
                         height: 60,
                         width: 1,
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withAlpha(38),
                       ),
                       
                       // RIGHT: License Number
@@ -303,7 +303,7 @@ class VerificationResultCard extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppTheme.gold.withOpacity(0.15),
+                                color: AppTheme.gold.withAlpha(38),
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: const Icon(
@@ -367,7 +367,7 @@ class VerificationResultCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withAlpha(51),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
@@ -402,7 +402,7 @@ class VerificationResultCard extends StatelessWidget {
                     "Recording an offense will generate a fine notice",
                     style: TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textSecondary.withOpacity(0.8),
+                      color: AppTheme.textSecondary.withAlpha(204),
                       fontWeight: FontWeight.w500,
                     ),
                   ),

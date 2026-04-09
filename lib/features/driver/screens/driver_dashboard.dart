@@ -1,8 +1,8 @@
 // lib/screens/driver_dashboard.dart
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
-import '../../services/TrafficOfficerServices/auth_service.dart';
-import '../../Screens/Traffic_officerScreens/login_screen.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../features/traffic_officer/services/auth_service.dart';
+import '../../../features/traffic_officer/screens/login_screen.dart';
 
 class DriverDashboard extends StatelessWidget {
   const DriverDashboard({super.key});

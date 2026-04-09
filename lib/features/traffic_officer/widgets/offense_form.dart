@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../../../core/theme/app_theme.dart';
 
 class OffenseFormData {
   final String offenseType;
@@ -220,10 +220,10 @@ class _OffenseFormState extends State<OffenseForm> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppTheme.gold.withOpacity(0.15),
+                        color: AppTheme.gold.withAlpha(38),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: AppTheme.gold.withOpacity(0.3),
+                          color: AppTheme.gold.withAlpha(77),
                         ),
                       ),
                       child: Text(

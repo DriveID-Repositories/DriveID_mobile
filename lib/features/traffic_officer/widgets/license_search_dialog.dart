@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/TrafficOfficerModels/license.dart';
-import '../theme/app_theme.dart';
+import '../models/license.dart';
+import '../../../core/theme/app_theme.dart';
 
 class LicenseSearchDialog extends StatefulWidget {
   final List<License> licenses;
@@ -69,7 +69,7 @@ class _LicenseSearchDialogState extends State<LicenseSearchDialog> {
                 topLeft: Radius.circular(16),
                 topRight: Radius.circular(16),
               ),
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withAlpha(13),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -147,7 +147,7 @@ class _LicenseSearchDialogState extends State<LicenseSearchDialog> {
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.05),
+                              color: Colors.white.withAlpha(13),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.white10),
                             ),
@@ -190,8 +190,8 @@ class _LicenseSearchDialogState extends State<LicenseSearchDialog> {
                                       decoration: BoxDecoration(
                                         color:
                                             license.isExpired
-                                                ? Colors.red.withOpacity(0.2)
-                                                : Colors.green.withOpacity(0.2),
+                                                ? Colors.red.withAlpha(51)
+                                                : Colors.green.withAlpha(51),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/custom_appbar.dart';
-import '../../widgets/custom_bottom_nav.dart';
-import '../../services/TrafficOfficerServices/dashboard_service.dart';
-import '../../models/TrafficOfficerModels/dashboard_stats.dart';
+import '../../../core/theme/app_theme.dart';
+import '../widgets/custom_appbar.dart';
+import '../widgets/custom_bottom_nav.dart';
+import '../services/dashboard_service.dart';
+import '../models/dashboard_stats.dart';
 import 'verify_screen.dart';
 import 'offenses_screen.dart';
 
@@ -195,12 +195,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: AppTheme.cardDark,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppTheme.gold.withOpacity(0.3),
+                    color: AppTheme.gold.withAlpha(77),
                     width: 1.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.gold.withOpacity(0.15),
+                      color: AppTheme.gold.withAlpha(38),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -213,10 +213,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.gold.withOpacity(0.15),
+                          color: AppTheme.gold.withAlpha(38),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: AppTheme.gold.withOpacity(0.3),
+                            color: AppTheme.gold.withAlpha(77),
                           ),
                         ),
                         child: const Icon(
@@ -296,12 +296,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: color.withOpacity(0.4),
+          color: color.withAlpha(102),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.15),
+            color: color.withAlpha(38),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -315,7 +315,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withAlpha(31),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 22),

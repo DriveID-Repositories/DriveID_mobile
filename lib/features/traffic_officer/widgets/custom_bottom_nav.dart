@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../../../core/theme/app_theme.dart';
 
 class CustomBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -18,7 +18,7 @@ class CustomBottomNav extends StatelessWidget {
         color: AppTheme.cardDark,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withAlpha(51),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

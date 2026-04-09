@@ -26,6 +26,57 @@ class SupabaseConfig {
 
 Run these SQL commands in your Supabase SQL Editor:
 
+### Create officers table (for Traffic Officers, Licensing Officers, Admins):
+```sql
+CREATE TABLE officers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  auth_user_id UUID REFERENCES auth.users(id),
+  email TEXT UNIQUE NOT NULL,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('traffic_officer', 'licensing_officer', 'admin')),
+  employment_number TEXT UNIQUE,
+  station TEXT,
+  phone TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Insert default admin user (replace with your email)
+INSERT INTO officers (email, first_name, last_name, role, employment_number, station) 
+VALUES ('admin@driveid.gov', 'System', 'Administrator', 'admin', 'ADMIN001', 'Central Office');
+```
+
+### Create drivers table:
+```sql
+CREATE TABLE drivers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  auth_user_id UUID REFERENCES auth.users(id),
+  email TEXT UNIQUE,
+  full_name TEXT NOT NULL,
+  date_of_birth DATE,
+  phone TEXT,
+  address TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Create licenses table:
+```sql
+CREATE TABLE licenses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  driver_id UUID REFERENCES drivers(id) ON DELETE CASCADE,
+  register_number TEXT UNIQUE NOT NULL,
+  license_class TEXT NOT NULL,
+  issue_date DATE NOT NULL,
+  expiry_date DATE NOT NULL,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'expired', 'suspended', 'revoked')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
 ### Create offense_types table:
 ```sql
 CREATE TABLE offense_types (
@@ -77,21 +128,56 @@ For production apps, enable RLS and create policies:
 ALTER TABLE offenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE verifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE offense_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE officers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE licenses ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (adjust based on your auth requirements)
 CREATE POLICY "Allow all operations on offenses" ON offenses FOR ALL USING (true);
 CREATE POLICY "Allow all operations on verifications" ON verifications FOR ALL USING (true);
 CREATE POLICY "Allow read access to offense_types" ON offense_types FOR SELECT USING (true);
+CREATE POLICY "Allow officers to read their own data" ON officers FOR SELECT USING (auth.uid() = auth_user_id);
+CREATE POLICY "Allow drivers to read their own data" ON drivers FOR SELECT USING (auth.uid() = auth_user_id);
+CREATE POLICY "Allow drivers to read their licenses" ON licenses FOR SELECT USING (
+  driver_id IN (SELECT id FROM drivers WHERE auth_user_id = auth.uid())
+);
 ```
 
-## 5. Install Dependencies
+## 5. Account Creation Process
+
+### User Roles & Permissions:
+- **Admin**: Can create/manage all officer accounts, full system access
+- **Licensing Officer**: Can create driver accounts and licenses, manage licensing
+- **Traffic Officer**: Can verify licenses, record offenses (mobile app)
+- **Driver**: Can view their license info (mobile app)
+
+### Creating Accounts:
+
+#### For Admins (Manual Setup):
+1. Create admin user in Supabase Auth dashboard
+2. Insert admin record in `officers` table with `role = 'admin'`
+
+#### For Officers:
+- **Only admins can create officer accounts** through database inserts or admin interface
+- Officers use email/password authentication
+
+#### For Drivers:
+- **Licensing officers create driver accounts** through desktop application
+- Drivers authenticate via eSignet (external service)
+- System links eSignet users to existing driver records
+
+### Authentication Flow:
+1. **Email/Password** (Officers): Direct Supabase auth + role lookup
+2. **eSignet** (Drivers): External auth → link to existing driver record
+
+## 6. Install Dependencies
 
 Run:
 ```bash
 flutter pub get
 ```
 
-## 6. Run the App
+## 7. Run the App
 
 ```bash
 flutter run
@@ -99,6 +185,7 @@ flutter run
 
 ## Features Added
 
+- **User Authentication**: Role-based access (Admin, Licensing Officer, Traffic Officer, Driver)
 - **Dashboard Stats**: Real-time statistics from Supabase
 - **Offense Management**: Create and view offenses stored in Supabase
 - **License Verification**: Record verification events in Supabase
@@ -107,6 +194,9 @@ flutter run
 ## API Reference
 
 The app uses these Supabase tables:
+- `officers`: Stores officer profiles (traffic officers, licensing officers, admins)
+- `drivers`: Stores driver profiles
+- `licenses`: Stores driving license information
 - `offenses`: Stores traffic violation records
 - `offense_types`: Stores available offense types and fines
 - `verifications`: Stores license verification records

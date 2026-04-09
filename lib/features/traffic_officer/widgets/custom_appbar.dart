@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
-import '../services/TrafficOfficerServices/auth_service.dart';
+import '../../../core/theme/app_theme.dart';
+import '../services/auth_service.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   @override
@@ -19,7 +19,9 @@ class _CustomAppBarState extends State<CustomAppBar> {
   void _handleLogout() async {
     await AuthService.logout();
     // Redirect to login
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+    if (mounted) {
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+    }
   }
 
   @override
