@@ -1,57 +1,61 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/TrafficOfficerModels/license.dart';
-import '../../config/supabase_config.dart';
-import '../../models/TrafficOfficerModels/dashboard_stats.dart';
+import '../models/license.dart';
+import '../../../core/config/supabase_config.dart';
+import '../models/dashboard_stats.dart';
 
 class DashboardService {
   final SupabaseClient _client = SupabaseConfig.client;
+  static const Duration _requestTimeout = Duration(seconds: 4);
 
   // Get dashboard statistics
   Future<DashboardStats> getDashboardStats() async {
     try {
-      // Get verifications today
       final today = DateTime.now();
       final startOfDay = DateTime(today.year, today.month, today.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
-      final verificationsResponse = await _client
+      final futureVerificationsResponse = _client
           .from('verifications')
           .select()
           .gte('verified_at', startOfDay.toIso8601String())
-          .lt('verified_at', endOfDay.toIso8601String());
-      final verificationsList = (verificationsResponse as List<dynamic>?) ?? [];
-      final verificationsToday = verificationsList.length;
+          .lt('verified_at', endOfDay.toIso8601String())
+          .timeout(_requestTimeout, onTimeout: () => []);
 
-      // Get total verifications
-      final totalVerificationsResponse =
-          await _client.from('verifications').select();
-      final totalVerificationsList =
-          (totalVerificationsResponse as List<dynamic>?) ?? [];
-      final totalVerifications = totalVerificationsList.length;
+      final futureTotalVerificationsResponse = _client
+          .from('verifications')
+          .select()
+          .timeout(_requestTimeout, onTimeout: () => []);
 
-      // Get offenses recorded today
-      final offensesResponse = await _client
+      final futureOffensesResponse = _client
           .from('offenses')
           .select()
           .gte('created_at', startOfDay.toIso8601String())
-          .lt('created_at', endOfDay.toIso8601String());
-      final offensesList = (offensesResponse as List<dynamic>?) ?? [];
-      final offensesRecorded = offensesList.length;
+          .lt('created_at', endOfDay.toIso8601String())
+          .timeout(_requestTimeout, onTimeout: () => []);
 
-      // Get pending offenses
-      final pendingOffensesResponse = await _client
+      final futurePendingOffensesResponse = _client
           .from('offenses')
           .select()
-          .eq('status', 'Pending');
-      final pendingOffensesList =
-          (pendingOffensesResponse as List<dynamic>?) ?? [];
-      final pendingOffenses = pendingOffensesList.length;
+          .eq('status', 'Pending')
+          .timeout(_requestTimeout, onTimeout: () => []);
+
+      final responses = await Future.wait([
+        futureVerificationsResponse,
+        futureTotalVerificationsResponse,
+        futureOffensesResponse,
+        futurePendingOffensesResponse,
+      ]);
+
+      final verificationsList = (responses[0] as List<dynamic>?) ?? [];
+      final totalVerificationsList = (responses[1] as List<dynamic>?) ?? [];
+      final offensesList = (responses[2] as List<dynamic>?) ?? [];
+      final pendingOffensesList = (responses[3] as List<dynamic>?) ?? [];
 
       return DashboardStats(
-        verificationsToday: verificationsToday,
-        offensesRecorded: offensesRecorded,
-        totalVerifications: totalVerifications,
-        pendingOffenses: pendingOffenses,
+        verificationsToday: verificationsList.length,
+        offensesRecorded: offensesList.length,
+        totalVerifications: totalVerificationsList.length,
+        pendingOffenses: pendingOffensesList.length,
       );
     } catch (e) {
       throw Exception('Failed to fetch dashboard stats: $e');

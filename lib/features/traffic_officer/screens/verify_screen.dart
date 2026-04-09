@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/custom_appbar.dart';
-import '../../widgets/custom_bottom_nav.dart';
-import '../../widgets/verification_result_card.dart';
-import '../../widgets/offense_form.dart';
-import '../../services/TrafficOfficerServices/dashboard_service.dart';
-import '../../services/TrafficOfficerServices/offense_service.dart';
-import '../../models/TrafficOfficerModels/license.dart';
-import '../Traffic_OfficerScreens/dashboard_screen.dart';
+import '../../../core/theme/app_theme.dart';
+import '../widgets/custom_appbar.dart';
+import '../widgets/custom_bottom_nav.dart';
+import '../widgets/verification_result_card.dart';
+import '../widgets/offense_form.dart';
+import '../services/dashboard_service.dart';
+import '../services/offense_service.dart';
+import '../models/license.dart';
+import 'dashboard_screen.dart';
 import 'offenses_screen.dart';
 
 enum VerificationStatus { none, success, inactive, notFound, error }

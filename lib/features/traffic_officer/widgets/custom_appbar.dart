@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
-import '../services/TrafficOfficerServices/auth_service.dart';
+import '../../../core/theme/app_theme.dart';
+import '../services/auth_service.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   @override

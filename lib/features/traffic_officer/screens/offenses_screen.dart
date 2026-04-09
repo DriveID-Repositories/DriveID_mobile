@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/custom_appbar.dart';
-import '../../widgets/custom_bottom_nav.dart';
-import '../../widgets/license_search_dialog.dart';
-import '../../widgets/license_preview_card.dart';
-import '../../services/TrafficOfficerServices/offense_service.dart';
-import '../../services/TrafficOfficerServices/dashboard_service.dart';
-import '../../models/TrafficOfficerModels/offense.dart';
-import '../../models/TrafficOfficerModels/license.dart';
-import '../Traffic_OfficerScreens/dashboard_screen.dart';
+import '../../../core/theme/app_theme.dart';
+import '../widgets/custom_appbar.dart';
+import '../widgets/custom_bottom_nav.dart';
+import '../widgets/license_search_dialog.dart';
+import '../widgets/license_preview_card.dart';
+import '../services/offense_service.dart';
+import '../services/dashboard_service.dart';
+import '../models/offense.dart';
+import '../models/license.dart';
+import 'dashboard_screen.dart';
 import 'verify_screen.dart';
 
 class OffensesScreen extends StatefulWidget {
@@ -318,9 +318,8 @@ class _OffensesScreenState extends State<OffensesScreen> {
                       const SizedBox(height: 8),
                       TextField(
                         controller: locationController,
-                        enabled: _selectedLicense != null,
                         decoration: InputDecoration(
-                          hintText: _selectedLicense == null ? 'Select a license first' : 'Enter offense location',
+                          hintText: 'Enter offense location',
                           prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
                           filled: true,
                           fillColor: AppTheme.background,

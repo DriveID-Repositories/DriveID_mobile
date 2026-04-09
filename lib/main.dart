@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
-import 'Traffic_officer/config/supabase_config.dart';
-import 'Traffic_officer/Screens/Traffic_officerScreens/dashboard_screen.dart';
-import 'Traffic_officer/Screens/Traffic_officerScreens/login_screen.dart';
-import 'Traffic_officer/services/TrafficOfficerServices/auth_service.dart';
-import 'Traffic_officer/theme/app_theme.dart';
+import 'core/config/supabase_config.dart';
+import 'features/traffic_officer/screens/dashboard_screen.dart';
+import 'features/traffic_officer/screens/login_screen.dart';
+import 'features/traffic_officer/services/auth_service.dart';
+import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/TrafficOfficerModels/license.dart';
-import '../theme/app_theme.dart';
+import '../models/license.dart';
+import '../../../core/theme/app_theme.dart';
 
 class LicensePreviewCard extends StatelessWidget {
   final License license;

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/custom_appbar.dart';
-import '../../widgets/custom_bottom_nav.dart';
-import '../../services/TrafficOfficerServices/dashboard_service.dart';
-import '../../models/TrafficOfficerModels/dashboard_stats.dart';
+import '../../../core/theme/app_theme.dart';
+import '../widgets/custom_appbar.dart';
+import '../widgets/custom_bottom_nav.dart';
+import '../services/dashboard_service.dart';
+import '../models/dashboard_stats.dart';
 import 'verify_screen.dart';
 import 'offenses_screen.dart';
 

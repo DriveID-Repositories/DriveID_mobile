@@ -1,12 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../config/supabase_config.dart';
-import '../../models/TrafficOfficerModels/license.dart';
+import '../../../core/config/supabase_config.dart';
+import '../models/license.dart';
 import 'dashboard_service.dart';
-import '../../models/TrafficOfficerModels/offense.dart';
+import '../models/offense.dart';
 
 class OffenseService {
   final SupabaseClient _client = SupabaseConfig.client;
   final DashboardService _dashboardService = DashboardService();
+  static const Duration _requestTimeout = Duration(seconds: 4);
 
   // Validate license exists
   Future<License?> validateLicense(String registrationNumber) async {
@@ -23,7 +24,8 @@ class OffenseService {
       final response = await _client
           .from('offenses')
           .select()
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .timeout(_requestTimeout, onTimeout: () => []);
       final offenses = (response as List<dynamic>?) ?? [];
       return offenses
           .map((json) => Offense.fromJson(json as Map<String, dynamic>))
@@ -39,7 +41,8 @@ class OffenseService {
       final response = await _client
           .from('offense_types')
           .select()
-          .order('label');
+          .order('label')
+          .timeout(_requestTimeout, onTimeout: () => []);
 
       final offenseTypes = (response as List<dynamic>?) ?? [];
 
@@ -89,7 +92,8 @@ class OffenseService {
                 'fine': fine,
               })
               .select()
-              .single();
+              .single()
+              .timeout(_requestTimeout);
 
       return Offense.fromJson(response);
     } catch (e) {
@@ -131,7 +135,8 @@ class OffenseService {
               .gte('verified_at', oneHourAgo.toIso8601String())
               .order('verified_at', ascending: false)
               .limit(1)
-              .maybeSingle();
+              .maybeSingle()
+              .timeout(_requestTimeout);
 
       if (verificationCheck == null) {
         throw Exception('License must be verified before recording an offense');
@@ -145,7 +150,7 @@ class OffenseService {
         'location': location,
         'status': 'Pending',
         'fine': fine,
-      });
+      }).timeout(_requestTimeout);
     } catch (e) {
       throw Exception('Failed to record offense: $e');
     }
