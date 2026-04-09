@@ -1,11 +1,7 @@
 // lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../services/TrafficOfficerServices/auth_service.dart';
 import '../../theme/app_theme.dart';
-import '../../models/app_user.dart';
 import 'dashboard_screen.dart';
-import '../../../DriverComponent/screens/driver_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,7 +11,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  bool _isLoading = false;
+  final bool _isLoading = false;
   bool _isPasswordLogin = true; // Default to password login for mobile
   
   final TextEditingController _emailController = TextEditingController();
@@ -28,70 +24,70 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // Email/Password Login (Real authentication)
-  Future<void> _signInWithPassword() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showSnackBar('Please enter email and password', AppTheme.warning);
-      return;
-    }
+  // Email/Password Login (Removed for testing)
+  // Future<void> _signInWithPassword() async {
+  //   if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+  //     _showSnackBar('Please enter email and password', AppTheme.warning);
+  //     return;
+  //   }
 
-    setState(() => _isLoading = true);
+  //   setState(() => _isLoading = true);
 
-    try {
-      final user = await AuthService.signInWithEmail(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+  //   try {
+  //     final user = await AuthService.signInWithEmail(
+  //       email: _emailController.text.trim(),
+  //       password: _passwordController.text,
+  //     );
 
-      if (user != null && mounted) {
-        _navigateByRole(user);
-      }
-    } catch (e) {
-      _showSnackBar(e.toString(), AppTheme.error);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
+  //     if (user != null && mounted) {
+  //       _navigateByRole(user);
+  //     }
+  //   } catch (e) {
+  //     _showSnackBar(e.toString(), AppTheme.error);
+  //   } finally {
+  //     if (mounted) setState(() => _isLoading = false);
+  //   }
+  // }
 
-  // eSignet Login
-  Future<void> _signInWithESignet() async {
-    setState(() => _isLoading = true);
+  // eSignet Login (Removed for testing)
+  // Future<void> _signInWithESignet() async {
+  //   setState(() => _isLoading = true);
 
-    try {
-      final url = AuthService.getAuthorizationUrl();
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw 'Could not launch $url';
-      }
-    } catch (e) {
-      _showSnackBar('Error launching browser: $e', AppTheme.error);
-      setState(() => _isLoading = false);
-    }
-  }
+  //   try {
+  //     final url = AuthService.getAuthorizationUrl();
+  //     final uri = Uri.parse(url);
+  //     if (await canLaunchUrl(uri)) {
+  //       await launchUrl(uri, mode: LaunchMode.externalApplication);
+  //     } else {
+  //       throw 'Could not launch $url';
+  //     }
+  //   } catch (e) {
+  //     _showSnackBar('Error launching browser: $e', AppTheme.error);
+  //     setState(() => _isLoading = false);
+  //   }
+  // }
 
-  void _navigateByRole(AppUser user) {
-    if (user.isDriver) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const DriverDashboard()),
-      );
-    } else if (user.isTrafficOfficer) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
-      );
-    } else {
-      _showSnackBar('Invalid role for mobile app', AppTheme.error);
-    }
-  }
+  // void _navigateByRole(AppUser user) {
+  //   if (user.isDriver) {
+  //     Navigator.pushReplacement(
+  //       context,
+  //       MaterialPageRoute(builder: (_) => const DriverDashboard()),
+  //     );
+  //   } else if (user.isTrafficOfficer) {
+  //     Navigator.pushReplacement(
+  //       context,
+  //       MaterialPageRoute(builder: (_) => const DashboardScreen()),
+  //     );
+  //   } else {
+  //     _showSnackBar('Invalid role for mobile app', AppTheme.error);
+  //   }
+  // }
 
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
-  }
+  // void _showSnackBar(String message, Color color) {
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     SnackBar(content: Text(message), backgroundColor: color),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -261,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
-            onPressed: _isLoading ? null : _signInWithPassword,
+            onPressed: _isLoading ? null : () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen())),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.gold,
               foregroundColor: Colors.black,
@@ -300,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _signInWithESignet,
+        onPressed: _isLoading ? null : () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen())),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.gold,
           foregroundColor: Colors.black,
