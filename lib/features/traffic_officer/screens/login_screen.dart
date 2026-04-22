@@ -1,7 +1,10 @@
 // lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
+import '../../../core/models/app_user.dart';
 import '../../../core/theme/app_theme.dart';
+import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
+import '../../driver/screens/driver_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,7 +14,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final bool _isLoading = false;
+  bool _isLoading = false;
   bool _isPasswordLogin = true; // Default to password login for mobile
   
   final TextEditingController _emailController = TextEditingController();
@@ -24,30 +27,70 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // Email/Password Login (Removed for testing)
-  // Future<void> _signInWithPassword() async {
-  //   if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-  //     _showSnackBar('Please enter email and password', AppTheme.warning);
-  //     return;
-  //   }
+  Future<void> _signInWithPassword() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-  //   setState(() => _isLoading = true);
+    if (email.isEmpty || password.isEmpty) {
+      _showSnackBar('Enter both email and password', AppTheme.warning);
+      return;
+    }
 
-  //   try {
-  //     final user = await AuthService.signInWithEmail(
-  //       email: _emailController.text.trim(),
-  //       password: _passwordController.text,
-  //     );
+    setState(() => _isLoading = true);
 
-  //     if (user != null && mounted) {
-  //       _navigateByRole(user);
-  //     }
-  //   } catch (e) {
-  //     _showSnackBar(e.toString(), AppTheme.error);
-  //   } finally {
-  //     if (mounted) setState(() => _isLoading = false);
-  //   }
-  // }
+    try {
+      final user = await AuthService.signInWithEmail(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+
+      if (user == null) {
+        _showSnackBar('Login failed. Please try again.', AppTheme.error);
+        return;
+      }
+
+      if (!user.canAccessMobile) {
+        await AuthService.logout();
+        if (!mounted) return;
+        _showSnackBar(
+          'This account does not have access to the mobile app.',
+          AppTheme.warning,
+        );
+        return;
+      }
+
+      _navigateForRole(user);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar(
+        e.toString().replaceFirst('Exception: ', ''),
+        AppTheme.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _navigateForRole(AppUser user) {
+    final Widget destination;
+    if (user.isDriver) {
+      destination = const DriverDashboard();
+    } else if (user.isTrafficOfficer) {
+      destination = const DashboardScreen();
+    } else {
+      _showSnackBar('Unsupported role: ${user.role}', AppTheme.warning);
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => destination),
+    );
+  }
 
   // eSignet Login (Removed for testing)
   // Future<void> _signInWithESignet() async {
@@ -67,27 +110,11 @@ class _LoginScreenState extends State<LoginScreen> {
   //   }
   // }
 
-  // void _navigateByRole(AppUser user) {
-  //   if (user.isDriver) {
-  //     Navigator.pushReplacement(
-  //       context,
-  //       MaterialPageRoute(builder: (_) => const DriverDashboard()),
-  //     );
-  //   } else if (user.isTrafficOfficer) {
-  //     Navigator.pushReplacement(
-  //       context,
-  //       MaterialPageRoute(builder: (_) => const DashboardScreen()),
-  //     );
-  //   } else {
-  //     _showSnackBar('Invalid role for mobile app', AppTheme.error);
-  //   }
-  // }
-
-  // void _showSnackBar(String message, Color color) {
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     SnackBar(content: Text(message), backgroundColor: color),
-  //   );
-  // }
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: color),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -257,7 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
-            onPressed: _isLoading ? null : () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen())),
+            onPressed: _isLoading ? null : _signInWithPassword,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.gold,
               foregroundColor: Colors.black,
@@ -296,7 +323,12 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen())),
+        onPressed: _isLoading
+            ? null
+            : () => _showSnackBar(
+                'eSignet login will be enabled later',
+                AppTheme.warning,
+              ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.gold,
           foregroundColor: Colors.black,

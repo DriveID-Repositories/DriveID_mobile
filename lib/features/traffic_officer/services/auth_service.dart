@@ -42,7 +42,7 @@ class AuthService {
         throw Exception('Invalid email or password');
       }
       
-      // 2. Get user role and profile from your tables
+      // 2. Get user role and profile from users table
       final appUser = await _getUserWithRole(response.user!);
       
       if (appUser == null) {
@@ -150,46 +150,132 @@ class AuthService {
   // ==================== USER ROLE & PROFILE ====================
   
   static Future<AppUser?> _getUserWithRole(User authUser) async {
-    // Check if user is a driver
+    final role = await _getRoleFromUsersTable(authUser);
+    if (role != null) {
+      return _buildRoleBasedUser(authUser: authUser, role: role);
+    }
+
+    // Fallback for legacy schema where role is inferred from role tables.
+    return _getUserWithRoleFromLegacyTables(authUser);
+  }
+
+  static Future<String?> _getRoleFromUsersTable(User authUser) async {
+    Map<String, dynamic>? userRow;
+
+    try {
+      userRow = await _supabase
+          .from('users')
+          .select('role')
+          .eq('id', authUser.id)
+          .maybeSingle();
+    } catch (_) {
+      userRow = null;
+    }
+
+    try {
+      userRow ??= await _supabase
+          .from('users')
+          .select('role')
+          .eq('auth_user_id', authUser.id)
+          .maybeSingle();
+    } catch (_) {
+      userRow = userRow;
+    }
+
+    if (userRow == null) return null;
+    final role = userRow['role']?.toString();
+    if (role == null || role.isEmpty) return null;
+    return role;
+  }
+
+  static Future<AppUser?> _buildRoleBasedUser({
+    required User authUser,
+    required String role,
+  }) async {
+    if (role == 'driver') {
+      final driver = await _supabase
+          .from('drivers')
+          .select()
+          .eq('auth_user_id', authUser.id)
+          .maybeSingle();
+
+      final license = driver != null
+          ? await _supabase
+                .from('licenses')
+                .select()
+                .eq('driver_id', driver['id'])
+                .maybeSingle()
+          : null;
+
+      return AppUser(
+        id: authUser.id,
+        email: authUser.email ?? '',
+        role: role,
+        userData: driver,
+        license: license,
+      );
+    }
+
+    if (role == 'traffic_officer' || role == 'licensing_officer' || role == 'admin') {
+      final officer = await _supabase
+          .from('officers')
+          .select()
+          .eq('auth_user_id', authUser.id)
+          .maybeSingle();
+
+      return AppUser(
+        id: authUser.id,
+        email: authUser.email ?? '',
+        role: role,
+        userData: officer,
+      );
+    }
+
+    return AppUser(
+      id: authUser.id,
+      email: authUser.email ?? '',
+      role: role,
+    );
+  }
+
+  static Future<AppUser?> _getUserWithRoleFromLegacyTables(User authUser) async {
     final driver = await _supabase
         .from('drivers')
         .select()
         .eq('auth_user_id', authUser.id)
         .maybeSingle();
-    
+
     if (driver != null) {
-      // Get license for this driver
       final license = await _supabase
           .from('licenses')
           .select()
           .eq('driver_id', driver['id'])
           .maybeSingle();
-      
+
       return AppUser(
         id: authUser.id,
-        email: authUser.email!,
+        email: authUser.email ?? '',
         role: 'driver',
         userData: driver,
         license: license,
       );
     }
-    
-    // Check if user is an officer
+
     final officer = await _supabase
         .from('officers')
         .select()
         .eq('auth_user_id', authUser.id)
         .maybeSingle();
-    
+
     if (officer != null) {
       return AppUser(
         id: authUser.id,
-        email: authUser.email!,
+        email: authUser.email ?? '',
         role: officer['role'] ?? 'licensing_officer',
         userData: officer,
       );
     }
-    
+
     return null;
   }
   

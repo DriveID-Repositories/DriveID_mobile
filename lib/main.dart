@@ -2,10 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
 import 'core/config/supabase_config.dart';
+import 'features/driver/screens/driver_dashboard.dart';
 import 'features/traffic_officer/screens/dashboard_screen.dart';
 import 'features/traffic_officer/screens/login_screen.dart';
 import 'features/traffic_officer/services/auth_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/models/app_user.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -89,8 +91,10 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.darkTheme,
       initialRoute: '/',
       routes: {
-        '/': (context) => LoginScreen(),
-        '/login': (context) => DashboardScreen(),
+        '/': (context) => const AuthWrapper(),
+        '/login': (context) => const LoginScreen(),
+        '/traffic-dashboard': (context) => const DashboardScreen(),
+        '/driver-dashboard': (context) => const DriverDashboard(),
       },
     );
   }
@@ -104,7 +108,8 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  bool? _isLoggedIn;
+  AppUser? _user;
+  bool _isChecking = true;
 
   @override
   void initState() {
@@ -113,17 +118,36 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   Future<void> _checkLoginStatus() async {
-    final isLoggedIn = await AuthService.isLoggedIn();
+    final user = await AuthService.currentUser;
+    if (user != null && !user.canAccessMobile) {
+      await AuthService.logout();
+      if (!mounted) return;
+      setState(() {
+        _user = null;
+        _isChecking = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
     setState(() {
-      _isLoggedIn = isLoggedIn;
+      _user = user;
+      _isChecking = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoggedIn == null) {
+    if (_isChecking) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    return _isLoggedIn! ? DashboardScreen() : LoginScreen();
+
+    if (_user?.isDriver == true) {
+      return const DriverDashboard();
+    }
+    if (_user?.isTrafficOfficer == true) {
+      return const DashboardScreen();
+    }
+    return const LoginScreen();
   }
 }
