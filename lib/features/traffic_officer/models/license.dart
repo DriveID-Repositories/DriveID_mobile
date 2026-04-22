@@ -22,13 +22,26 @@ class License {
     return value?.toString() ?? '';
   }
 
+  static Map<String, dynamic>? _map(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    return null;
+  }
+
   // ================= FROM JSON =================
   factory License.fromJson(Map<String, dynamic> json) {
+    final driver = _map(json['drivers']);
+    final ownerName = _str(json['owner_name']).isNotEmpty
+        ? _str(json['owner_name'])
+        : _str(driver?['full_name']);
+    final licenseType = _str(json['license_type']).isNotEmpty
+        ? _str(json['license_type'])
+        : _str(json['license_class']);
+
     return License(
       id: _str(json['id']),
       registerNumber: _str(json['register_number']),
-      ownerName: _str(json['owner_name']),
-      licenseType: _str(json['license_type']),
+      ownerName: ownerName,
+      licenseType: licenseType,
       expiryDate:
           json['expiry_date'] != null
               ? DateTime.parse(json['expiry_date'].toString())

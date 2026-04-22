@@ -7,6 +7,7 @@ import 'features/traffic_officer/screens/dashboard_screen.dart';
 import 'features/traffic_officer/screens/login_screen.dart';
 import 'features/traffic_officer/services/auth_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/models/app_user.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -107,7 +108,7 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  String? _userRole;
+  AppUser? _user;
   bool _isChecking = true;
 
   @override
@@ -118,8 +119,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _checkLoginStatus() async {
     final user = await AuthService.currentUser;
+    if (user != null && !user.canAccessMobile) {
+      await AuthService.logout();
+      if (!mounted) return;
+      setState(() {
+        _user = null;
+        _isChecking = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
     setState(() {
-      _userRole = user?.role;
+      _user = user;
       _isChecking = false;
     });
   }
@@ -130,10 +142,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (_userRole == 'driver') {
+    if (_user?.isDriver == true) {
       return const DriverDashboard();
     }
-    if (_userRole == 'traffic_officer') {
+    if (_user?.isTrafficOfficer == true) {
       return const DashboardScreen();
     }
     return const LoginScreen();

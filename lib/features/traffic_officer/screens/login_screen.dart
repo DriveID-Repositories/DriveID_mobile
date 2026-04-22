@@ -1,7 +1,10 @@
 // lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
+import '../../../core/models/app_user.dart';
 import '../../../core/theme/app_theme.dart';
+import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
+import '../../driver/screens/driver_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,9 +28,67 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithPassword() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      _showSnackBar('Enter both email and password', AppTheme.warning);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final user = await AuthService.signInWithEmail(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+
+      if (user == null) {
+        _showSnackBar('Login failed. Please try again.', AppTheme.error);
+        return;
+      }
+
+      if (!user.canAccessMobile) {
+        await AuthService.logout();
+        if (!mounted) return;
+        _showSnackBar(
+          'This account does not have access to the mobile app.',
+          AppTheme.warning,
+        );
+        return;
+      }
+
+      _navigateForRole(user);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar(
+        e.toString().replaceFirst('Exception: ', ''),
+        AppTheme.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _navigateForRole(AppUser user) {
+    final Widget destination;
+    if (user.isDriver) {
+      destination = const DriverDashboard();
+    } else if (user.isTrafficOfficer) {
+      destination = const DashboardScreen();
+    } else {
+      _showSnackBar('Unsupported role: ${user.role}', AppTheme.warning);
+      return;
+    }
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      MaterialPageRoute(builder: (_) => destination),
     );
   }
 

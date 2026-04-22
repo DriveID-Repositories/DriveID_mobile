@@ -1,11 +1,31 @@
 // lib/screens/driver_dashboard.dart
 import 'package:flutter/material.dart';
+import '../../../core/models/app_user.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/traffic_officer/services/auth_service.dart';
 import '../../../features/traffic_officer/screens/login_screen.dart';
 
-class DriverDashboard extends StatelessWidget {
+class DriverDashboard extends StatefulWidget {
   const DriverDashboard({super.key});
+
+  @override
+  State<DriverDashboard> createState() => _DriverDashboardState();
+}
+
+class _DriverDashboardState extends State<DriverDashboard> {
+  AppUser? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await AuthService.currentUser;
+    if (!mounted) return;
+    setState(() => _user = user);
+  }
 
   Future<void> _logout(BuildContext context) async {
     await AuthService.logout();
@@ -16,6 +36,8 @@ class DriverDashboard extends StatelessWidget {
       );
     }
   }
+
+  String get _welcomeName => _user?.displayName ?? 'Driver';
 
   @override
   Widget build(BuildContext context) {
@@ -40,8 +62,8 @@ class DriverDashboard extends StatelessWidget {
               color: AppTheme.gold,
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Welcome Driver!',
+            Text(
+              'Welcome, $_welcomeName!',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,

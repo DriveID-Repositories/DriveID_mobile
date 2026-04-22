@@ -7,6 +7,39 @@ class DashboardService {
   final SupabaseClient _client = SupabaseConfig.client;
   static const Duration _requestTimeout = Duration(seconds: 4);
 
+  Future<Map<String, String>> _getDriverNamesById(
+    Iterable<dynamic> driverIds,
+  ) async {
+    final ids =
+        driverIds
+            .map((id) => id?.toString())
+            .where((id) => id != null && id.isNotEmpty)
+            .cast<String>()
+            .toSet()
+            .toList();
+
+    if (ids.isEmpty) return {};
+
+    final response = await _client
+        .from('drivers')
+        .select('id, full_name')
+        .inFilter('id', ids)
+        .timeout(_requestTimeout, onTimeout: () => []);
+
+    final rows = (response as List<dynamic>?) ?? [];
+    return {
+      for (final row in rows)
+        (row['id']?.toString() ?? ''): row['full_name']?.toString() ?? '',
+    };
+  }
+
+  Future<License?> _buildLicenseFromRow(Map<String, dynamic> row) async {
+    final driverNames = await _getDriverNamesById([row['driver_id']]);
+    final enrichedRow = Map<String, dynamic>.from(row);
+    enrichedRow['owner_name'] = driverNames[row['driver_id']?.toString()] ?? '';
+    return License.fromJson(enrichedRow);
+  }
+
   // Get dashboard statistics
   Future<DashboardStats> getDashboardStats() async {
     try {
@@ -98,15 +131,15 @@ class DashboardService {
   // Get full license details
   Future<License?> getLicenseDetails(String registrationNumber) async {
     try {
-      final response =
-          await _client
-              .from('licenses')
-              .select()
-              .eq('register_number', registrationNumber)
-              .maybeSingle();
+      final response = await _client
+          .from('licenses')
+          .select()
+          .eq('register_number', registrationNumber)
+          .maybeSingle()
+          .timeout(_requestTimeout);
 
       if (response != null) {
-        return License.fromJson(response);
+        return _buildLicenseFromRow(response);
       }
       return null;
     } catch (e) {
@@ -117,10 +150,22 @@ class DashboardService {
   // Get all licenses for search
   Future<List<License>> getAllLicenses() async {
     try {
-      final response = await _client.from('licenses').select();
+      final response = await _client
+          .from('licenses')
+          .select()
+          .timeout(_requestTimeout, onTimeout: () => []);
       final licenses = (response as List<dynamic>?) ?? [];
+      final driverNames = await _getDriverNamesById(
+        licenses.map((license) => license['driver_id']),
+      );
+
       return licenses
-          .map((json) => License.fromJson(json as Map<String, dynamic>))
+          .map((json) {
+            final enriched = Map<String, dynamic>.from(json as Map<String, dynamic>);
+            enriched['owner_name'] =
+                driverNames[enriched['driver_id']?.toString()] ?? '';
+            return License.fromJson(enriched);
+          })
           .toList();
     } catch (e) {
       throw Exception('Failed to fetch licenses: $e');
