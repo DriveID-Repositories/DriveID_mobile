@@ -8,7 +8,7 @@ class HistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: 10,
+      itemCount: 11,
       separatorBuilder: (_, __) => const Divider(color: Colors.white24),
       itemBuilder: (context, index) {
         return ListTile(

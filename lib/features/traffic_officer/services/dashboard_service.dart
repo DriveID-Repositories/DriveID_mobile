@@ -1,8 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/license.dart';
 import '../../../core/config/supabase_config.dart';
 import '../models/dashboard_stats.dart';
-
+import '../models/license.dart'; 
 class DashboardService {
   final SupabaseClient _client = SupabaseConfig.client;
   static const Duration _requestTimeout = Duration(seconds: 4);
