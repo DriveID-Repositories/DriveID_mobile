@@ -1,3 +1,5 @@
+// ignore: unused_import
+import 'package:driveid_app/features/traffic_officer/models/dashboard_stats.dart';
 class DashboardStats {
   final int verificationsToday;
   final int offensesRecorded;

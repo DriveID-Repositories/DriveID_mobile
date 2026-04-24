@@ -1,14 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-<<<<<<< Updated upstream
 import '../models/license.dart';
 import '../../../core/config/supabase_config.dart';
 import '../models/dashboard_stats.dart';
-=======
-
-import '../../../core/config/supabase_config.dart';
-import '../models/dashboard_stats.dart';
-import '../models/license.dart';
->>>>>>> Stashed changes
 
 class DashboardService {
   final SupabaseClient _client = SupabaseConfig.client;

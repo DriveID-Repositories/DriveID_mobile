@@ -278,7 +278,7 @@ class _OffensesScreenState extends State<OffensesScreen> {
                               context: context,
                               builder: (_) => LicenseSearchDialog(
                                 licenses: _allLicenses,
-                                onLicenseSelected: (license) => setState(() => _selectedLicense = license),
+                                onLicenseSelected: (license) => setState(() => _selectedLicense = license as License?),
                               ),
                             );
                           },
@@ -304,7 +304,7 @@ class _OffensesScreenState extends State<OffensesScreen> {
                                   context: context,
                                   builder: (_) => LicenseSearchDialog(
                                     licenses: _allLicenses,
-                                    onLicenseSelected: (license) => setState(() => _selectedLicense = license),
+                                    onLicenseSelected: (license) => setState(() => _selectedLicense = license as License?),
                                   ),
                                 );
                               },
