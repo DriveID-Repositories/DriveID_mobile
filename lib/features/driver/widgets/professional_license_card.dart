@@ -192,7 +192,7 @@ class ProfessionalLicenseCard extends StatelessWidget {
                           ),
                           const LicenseMetric(
                             label: 'Verification',
-                            value: 'Signed QR',
+                            value: 'QR enabled',
                           ),
                         ],
                       ),
@@ -386,11 +386,11 @@ class LicenseSupportCard extends StatelessWidget {
           const SizedBox(height: 12),
           const SimpleBullet(
             text:
-                'The QR now uses a signed payload when the Supabase edge function is deployed.',
+                'The QR contains a live license payload for mobile verification.',
           ),
           const SimpleBullet(
             text:
-                'Traffic officers still confirm the live license status from Supabase during verification.',
+                'Traffic officers confirm the live license status from Supabase during verification.',
           ),
           SimpleBullet(
             text: license == null

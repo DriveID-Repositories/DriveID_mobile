@@ -15,42 +15,164 @@ class DriverTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Driver Portal',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: const BoxDecoration(
+        color: AppTheme.background,
+        border: Border(bottom: BorderSide(color: Colors.white10)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 70,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.shield_outlined, color: AppTheme.gold),
+                  const SizedBox(width: 10),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'DriveID',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      Text(
+                        driverName,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              PopupMenuButton<String>(
+                icon: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.gold, width: 2),
+                  ),
+                  child: const CircleAvatar(
+                    radius: 18,
+                    backgroundColor: AppTheme.gold,
+                    child: Icon(Icons.person, color: Colors.black, size: 20),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  driverName,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textLight,
+                onSelected: (value) {
+                  if (value == 'logout') {
+                    onLogout();
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem<String>(
+                    enabled: false,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Driver',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Mobile Portal',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<String>(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, size: 18, color: Colors.red),
+                        SizedBox(width: 12),
+                        Text('Logout', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
+                color: AppTheme.cardDark,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.cardBorder),
-            ),
-            child: IconButton(
-              onPressed: onLogout,
-              icon: const Icon(Icons.logout_rounded),
-              color: Colors.white,
-            ),
+        ),
+      ),
+    );
+  }
+}
+
+class DriverBottomNav extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  const DriverBottomNav({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardDark,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(51),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: currentIndex,
+        onTap: onTap,
+        selectedItemColor: AppTheme.gold,
+        unselectedItemColor: Colors.white38,
+        backgroundColor: Colors.transparent,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: const TextStyle(fontSize: 12),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_rounded),
+            activeIcon: Icon(Icons.dashboard_rounded),
+            label: 'Overview',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.badge_rounded),
+            activeIcon: Icon(Icons.badge_rounded),
+            label: 'License',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history_rounded),
+            activeIcon: Icon(Icons.history_rounded),
+            label: 'History',
           ),
         ],
       ),

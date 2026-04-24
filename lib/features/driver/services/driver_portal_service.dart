@@ -1,3 +1,4 @@
+import '../../../core/config/supabase_config.dart';
 import '../../../core/models/app_user.dart';
 import '../../traffic_officer/models/license.dart';
 import '../../traffic_officer/models/offense.dart';
@@ -10,34 +11,90 @@ class DriverPortalSnapshot {
 
   const DriverPortalSnapshot({
     required this.user,
-    this.license,
-    this.offenses = const [],
+    required this.license,
+    required this.offenses,
   });
 
-  int get pendingOffenses => offenses.where((o) => o.status == 'pending').length;
-  int get resolvedOffenses => offenses.where((o) => o.status != 'pending').length;
+  int get pendingOffenses =>
+      offenses.where((offense) => !_isResolved(offense.status)).length;
 
-  double get outstandingFines {
-    return offenses
-        .where((o) => o.status == 'pending')
-        .map((o) => double.tryParse(o.fine) ?? 0)
-        .fold(0, (sum, fine) => sum + fine);
+  int get resolvedOffenses =>
+      offenses.where((offense) => _isResolved(offense.status)).length;
+
+  double get outstandingFines => offenses
+      .where((offense) => !_isResolved(offense.status))
+      .fold(0, (sum, offense) => sum + _parseCurrency(offense.fine));
+
+  double get totalFines =>
+      offenses.fold(0, (sum, offense) => sum + _parseCurrency(offense.fine));
+
+  static bool _isResolved(String status) {
+    final normalized = status.trim().toLowerCase();
+    return normalized == 'paid' ||
+        normalized == 'resolved' ||
+        normalized == 'cleared';
   }
 
-  double get totalFines {
-    return offenses
-        .map((o) => double.tryParse(o.fine) ?? 0)
-        .fold(0, (sum, fine) => sum + fine);
+  static double _parseCurrency(String value) {
+    final sanitized = value.replaceAll(RegExp(r'[^0-9.]'), '');
+    return double.tryParse(sanitized) ?? 0;
   }
 }
 
 class DriverPortalService {
-  Future<DriverPortalSnapshot> getSnapshot() async {
-    // TODO: Implement fetching driver data
-    final user = await AuthService.currentUser;
-    if (user == null) throw Exception('Not logged in');
+  const DriverPortalService();
 
-    // For now, return snapshot without license
-    return DriverPortalSnapshot(user: user);
+  Future<DriverPortalSnapshot> getSnapshot() async {
+    final user = await AuthService.currentUser;
+    if (user == null || !user.isDriver) {
+      throw Exception('Driver account not found.');
+    }
+
+    final client = SupabaseConfig.client;
+    final driverId = user.userData?['id']?.toString();
+
+    Map<String, dynamic>? licenseJson = user.license;
+
+    if (licenseJson == null && driverId != null && driverId.isNotEmpty) {
+      licenseJson = await client
+          .from('licenses')
+          .select()
+          .eq('driver_id', driverId)
+          .maybeSingle();
+    }
+
+    final license = licenseJson != null ? License.fromJson(licenseJson) : null;
+    final licenseNumber = license?.registerNumber ?? user.licenseNumber;
+
+    List<Offense> offenses = [];
+    if (licenseNumber.isNotEmpty && licenseNumber != 'Not issued') {
+      try {
+        final response = await client
+            .from('offenses')
+            .select()
+            .eq('license_number', licenseNumber)
+            .order('created_at', ascending: false);
+
+        offenses = (response as List<dynamic>)
+            .map((json) => Offense.fromJson(json as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        final response = await client
+            .from('offenses')
+            .select()
+            .eq('registration_number', licenseNumber)
+            .order('created_at', ascending: false);
+
+        offenses = (response as List<dynamic>)
+            .map((json) => Offense.fromJson(json as Map<String, dynamic>))
+            .toList();
+      }
+    }
+
+    return DriverPortalSnapshot(
+      user: user,
+      license: license,
+      offenses: offenses,
+    );
   }
 }
