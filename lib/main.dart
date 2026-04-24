@@ -135,10 +135,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         _isChecking = false;
       });
     } catch (_) {
-<<<<<<< Updated upstream
       await AuthService.logout();
-=======
->>>>>>> Stashed changes
       if (!mounted) return;
       setState(() {
         _user = null;
