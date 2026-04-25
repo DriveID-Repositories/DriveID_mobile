@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
-import '../models/license.dart';
+
 import '../../../core/theme/app_theme.dart';
+import '../models/license.dart';
+import '../models/offense.dart';
 
 class VerificationResultCard extends StatelessWidget {
   final License license;
+  final List<Offense> offenses;
   final VoidCallback onRecordOffense;
 
   const VerificationResultCard({
     super.key,
     required this.license,
+    required this.offenses,
     required this.onRecordOffense,
   });
 
@@ -30,106 +34,130 @@ class VerificationResultCard extends StatelessWidget {
     return 'License is valid and active';
   }
 
+  int get _pendingOffenses =>
+      offenses.where((offense) => !_isResolved(offense.status)).length;
+
+  int get _resolvedOffenses =>
+      offenses.where((offense) => _isResolved(offense.status)).length;
+
+  bool _isResolved(String status) {
+    final normalized = status.trim().toLowerCase();
+    return normalized == 'paid' ||
+        normalized == 'resolved' ||
+        normalized == 'cleared';
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusColor = _getStatusColor();
-    final isExpired = license.isExpired || license.isRevoked;
-    final isValid = !isExpired;
+    final hasOpenOffenses = _pendingOffenses > 0;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: statusColor.withAlpha(128),
-          width: 1.5,
-        ),
+        color: const Color(0xFF0F1826),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: statusColor.withAlpha(102), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withAlpha(77),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withAlpha(90),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Gradient Ribbon Header (without the number)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [
-                  statusColor,
-                  statusColor.withAlpha(217),
-                ],
+                colors: [statusColor.withAlpha(240), const Color(0xFF14243A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(23),
-                topRight: Radius.circular(23),
+                topLeft: Radius.circular(27),
+                topRight: Radius.circular(27),
               ),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(64),
-                    borderRadius: BorderRadius.circular(14),
+                    color: Colors.white.withAlpha(38),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
                     license.isRevoked
                         ? Icons.block_rounded
                         : license.isExpired
-                        ? Icons.hourglass_empty_rounded
-                        : Icons.verified_rounded,
+                            ? Icons.hourglass_empty_rounded
+                            : Icons.verified_rounded,
                     color: Colors.white,
                     size: 24,
                   ),
                 ),
                 const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _getStatusText(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _getStatusText(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _getStatusMessage(),
-                      style: TextStyle(
-                        color: Colors.white.withAlpha(230),
-                        fontSize: 11,
+                      const SizedBox(height: 3),
+                      Text(
+                        _getStatusMessage(),
+                        style: TextStyle(
+                          color: Colors.white.withAlpha(230),
+                          fontSize: 12,
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(28),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.white.withAlpha(36)),
+                  ),
+                  child: Text(
+                    hasOpenOffenses ? 'OPEN OFFENSES' : 'CLEAR RECORD',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
-
-          // Main Content
           Padding(
             padding: const EdgeInsets.all(22),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Profile Section with RECTANGULAR Avatar
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // RECTANGULAR Avatar with Status Border
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: 92,
+                      height: 108,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [statusColor, statusColor.withAlpha(153)],
@@ -144,8 +172,8 @@ class VerificationResultCard extends StatelessWidget {
                         ],
                       ),
                       child: Container(
-                        width: 76,
-                        height: 76,
+                        width: 88,
+                        height: 104,
                         margin: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
                           color: AppTheme.background,
@@ -178,8 +206,6 @@ class VerificationResultCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 20),
-
-                    // Owner Info
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,15 +213,23 @@ class VerificationResultCard extends StatelessWidget {
                           Text(
                             license.ownerName.toUpperCase(),
                             style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
                               color: AppTheme.textPrimary,
-                              letterSpacing: 0.8,
+                              letterSpacing: 0.5,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
+                          Text(
+                            'License No. ${_formatLicenseNumber(license.registerNumber)}',
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 14,
@@ -222,7 +256,7 @@ class VerificationResultCard extends StatelessWidget {
                                   style: const TextStyle(
                                     fontSize: 13,
                                     color: AppTheme.gold,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ],
@@ -233,121 +267,50 @@ class VerificationResultCard extends StatelessWidget {
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 28),
-                
-                // Info Grid
+                const SizedBox(height: 22),
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     color: AppTheme.background.withAlpha(128),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withAlpha(26),
-                    ),
+                    border: Border.all(color: Colors.white.withAlpha(26)),
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      // LEFT: Expiry Date
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: isValid 
-                                    ? AppTheme.success.withAlpha(38)
-                                    : AppTheme.error.withAlpha(38),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Icon(
-                                Icons.calendar_today_rounded,
-                                color: isValid ? AppTheme.success : AppTheme.error,
-                                size: 26,
-                              ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _InfoBlock(
+                              icon: Icons.calendar_today_rounded,
+                              label: 'EXPIRY DATE',
+                              value: _formatDate(license.expiryDate),
+                              accent: license.isExpired
+                                  ? AppTheme.error
+                                  : AppTheme.success,
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              "EXPIRY DATE",
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.8,
-                              ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _InfoBlock(
+                              icon: Icons.credit_card_rounded,
+                              label: 'STATUS',
+                              value: license.statusDisplay,
+                              accent: statusColor,
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _formatDate(license.expiryDate),
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: isValid ? AppTheme.textPrimary : AppTheme.error,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      
-                      // Divider
-                      Container(
-                        height: 60,
-                        width: 1,
-                        color: Colors.white.withAlpha(38),
-                      ),
-                      
-                      // RIGHT: License Number
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppTheme.gold.withAlpha(38),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(
-                                Icons.credit_card_rounded,
-                                color: AppTheme.gold,
-                                size: 26,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              "LICENSE NO.",
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              child: Text(
-                                _formatLicenseNumber(license.registerNumber),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.gold,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      const SizedBox(height: 16),
+                      _OffenseSummaryCard(
+                        totalOffenses: offenses.length,
+                        pendingOffenses: _pendingOffenses,
+                        resolvedOffenses: _resolvedOffenses,
+                        latestOffense: offenses.isEmpty ? null : offenses.first,
                       ),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 28),
-
-                // Record Offense Button
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -379,27 +342,23 @@ class VerificationResultCard extends StatelessWidget {
                         const Text(
                           'RECORD OFFENSE',
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                             fontSize: 16,
-                            letterSpacing: 1.2,
+                            letterSpacing: 0.8,
                           ),
                         ),
                         const SizedBox(width: 10),
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 20,
-                        ),
+                        const Icon(Icons.arrow_forward_rounded, size: 20),
                       ],
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
-                // Help text
                 Center(
                   child: Text(
-                    "Recording an offense will generate a fine notice",
+                    hasOpenOffenses
+                        ? 'This driver has active offense records that need officer attention'
+                        : 'No active offense record is currently attached to this driver',
                     style: TextStyle(
                       fontSize: 11,
                       color: AppTheme.textSecondary.withAlpha(204),
@@ -424,10 +383,217 @@ class VerificationResultCard extends StatelessWidget {
   }
 
   String _formatLicenseNumber(String number) {
-    // Format: 20260104008973 -> 2026 0104 0089 73
-    if (number.length == 14) {
-      return '${number.substring(0, 4)} ${number.substring(4, 8)} ${number.substring(8, 12)} ${number.substring(12)}';
-    }
     return number;
+  }
+}
+
+class _InfoBlock extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color accent;
+
+  const _InfoBlock({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.cardDark.withAlpha(150),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withAlpha(18)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: accent.withAlpha(36),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: accent, size: 22),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OffenseSummaryCard extends StatelessWidget {
+  final int totalOffenses;
+  final int pendingOffenses;
+  final int resolvedOffenses;
+  final Offense? latestOffense;
+
+  const _OffenseSummaryCard({
+    required this.totalOffenses,
+    required this.pendingOffenses,
+    required this.resolvedOffenses,
+    required this.latestOffense,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1522),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withAlpha(18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.gavel_rounded, color: AppTheme.gold, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Offense Record',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _SummaryMetric(
+                  label: 'Total',
+                  value: '$totalOffenses',
+                  accent: AppTheme.gold,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _SummaryMetric(
+                  label: 'Open',
+                  value: '$pendingOffenses',
+                  accent: pendingOffenses > 0
+                      ? AppTheme.error
+                      : AppTheme.success,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _SummaryMetric(
+                  label: 'Resolved',
+                  value: '$resolvedOffenses',
+                  accent: AppTheme.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (latestOffense == null)
+            Text(
+              'No offense records found for this driver.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(10),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    latestOffense!.offenseType,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${latestOffense!.status} • ${latestOffense!.location}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color accent;
+
+  const _SummaryMetric({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: accent.withAlpha(24),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: accent,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

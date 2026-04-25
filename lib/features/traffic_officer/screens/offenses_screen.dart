@@ -139,7 +139,7 @@ class _OffensesScreenState extends State<OffensesScreen> {
       final selectedType = _offenseTypes.firstWhere((type) => type.id == selectedOffenseId);
       await _offenseService.createOffense(
         name: _selectedLicense!.ownerName,
-        registrationNumber: _selectedLicense!.registerNumber,
+        licenseNumber: _selectedLicense!.registerNumber,
         offenseTypeId: selectedOffenseId!,
         offenseType: selectedType.label,
         location: locationController.text,
@@ -531,7 +531,7 @@ class _OffensesScreenState extends State<OffensesScreen> {
                             ),
                           ),
                           Text(
-                            offense.registrationNumber,
+                            offense.licenseNumber,
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppTheme.textSecondary,

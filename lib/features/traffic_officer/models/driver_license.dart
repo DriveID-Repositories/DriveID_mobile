@@ -34,4 +34,19 @@ class DriverLicense {
       driverId: json['driver_id']?.toString(),
     );
   }
+
+  String get statusDisplay {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return 'Valid';
+      case 'expired':
+        return 'Expired';
+      case 'revoked':
+        return 'Revoked';
+      case 'suspended':
+        return 'Suspended';
+      default:
+        return status;
+    }
+  }
 }

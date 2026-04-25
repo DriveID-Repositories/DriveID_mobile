@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -54,7 +55,18 @@ class AuthService {
       await _storeUserInfo(appUser);
       
       return appUser;
+    } on SocketException {
+      throw Exception(
+        'Unable to reach Supabase. Check your internet connection or DNS settings and try again.',
+      );
     } catch (e) {
+      final message = e.toString();
+      if (message.contains('Failed host lookup') ||
+          message.contains('AuthRetryableFetchException')) {
+        throw Exception(
+          'Unable to reach Supabase. Check your internet connection or DNS settings and try again.',
+        );
+      }
       throw Exception('Login failed: ${e.toString()}');
     }
   }
@@ -65,7 +77,16 @@ class AuthService {
   // ==================== ESIGNET AUTH ====================
   
   static String getAuthorizationUrl() {
-    return '$authorizationEndpoint?client_id=$clientId&redirect_uri=$redirectUri&response_type=code&scope=$scope&state=$state&nonce=$nonce';
+    return Uri.parse(authorizationEndpoint).replace(
+      queryParameters: {
+        'client_id': clientId,
+        'redirect_uri': redirectUri,
+        'response_type': 'code',
+        'scope': scope,
+        'state': state,
+        'nonce': nonce,
+      },
+    ).toString();
   }
 
   static Future<Map<String, dynamic>?> exchangeCodeForToken(String code) async {
@@ -91,7 +112,12 @@ class AuthService {
         final userInfo = JwtDecoder.decode(data['id_token']);
         
         // Sync with Supabase
-        await _syncESignetUser(userInfo);
+        final appUser = await _syncESignetUser(userInfo);
+        if (appUser == null) {
+          throw Exception('Failed to load eSignet user profile');
+        }
+
+        await _storeUserInfo(appUser);
         
         return data;
       } else {
@@ -104,7 +130,12 @@ class AuthService {
   
   static Future<AppUser?> _syncESignetUser(Map<String, dynamic> userInfo) async {
     try {
-      final email = userInfo['email'];
+      final email = userInfo['email']?.toString();
+      final currentSupabaseUser = _supabase.auth.currentUser;
+
+      if (email == null || email.isEmpty) {
+        throw Exception('Email not provided by eSignet');
+      }
       
       // Check if user exists in drivers table
       final existingDriver = await _supabase
@@ -115,13 +146,25 @@ class AuthService {
       
       if (existingDriver != null) {
         // Link auth_user_id if not already linked
-        if (existingDriver['auth_user_id'] == null) {
+        if (currentSupabaseUser != null && existingDriver['auth_user_id'] == null) {
           await _supabase.from('drivers').update({
-            'auth_user_id': _supabase.auth.currentUser!.id
+            'auth_user_id': currentSupabaseUser.id
           }).eq('id', existingDriver['id']);
         }
-        
-        return await _getUserWithRole(_supabase.auth.currentUser!);
+
+        final license = await _supabase
+            .from('licenses')
+            .select()
+            .eq('driver_id', existingDriver['id'])
+            .maybeSingle();
+
+        return AppUser(
+          id: currentSupabaseUser?.id ?? existingDriver['id'].toString(),
+          email: email,
+          role: 'driver',
+          userData: existingDriver,
+          license: license,
+        );
       }
       
       // Check if user exists in officers table
@@ -132,13 +175,18 @@ class AuthService {
           .maybeSingle();
       
       if (existingOfficer != null) {
-        if (existingOfficer['auth_user_id'] == null) {
+        if (currentSupabaseUser != null && existingOfficer['auth_user_id'] == null) {
           await _supabase.from('officers').update({
-            'auth_user_id': _supabase.auth.currentUser!.id
+            'auth_user_id': currentSupabaseUser.id
           }).eq('id', existingOfficer['id']);
         }
-        
-        return await _getUserWithRole(_supabase.auth.currentUser!);
+
+        return AppUser(
+          id: currentSupabaseUser?.id ?? existingOfficer['id'].toString(),
+          email: email,
+          role: existingOfficer['role']?.toString() ?? 'traffic_officer',
+          userData: existingOfficer,
+        );
       }
       
       throw Exception('User not found in system. Please contact administrator.');

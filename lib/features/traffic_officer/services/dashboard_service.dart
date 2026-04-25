@@ -1,21 +1,26 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/license.dart';
 import '../../../core/config/supabase_config.dart';
 import '../models/dashboard_stats.dart';
-import '../models/license.dart'; 
+
 class DashboardService {
   final SupabaseClient _client = SupabaseConfig.client;
   static const Duration _requestTimeout = Duration(seconds: 4);
+  static const List<String> _licenseIdentifierColumns = [
+    'license_number',
+    'register_number',
+    'registration_number',
+  ];
 
   Future<Map<String, String>> _getDriverNamesById(
     Iterable<dynamic> driverIds,
   ) async {
-    final ids =
-        driverIds
-            .map((id) => id?.toString())
-            .where((id) => id != null && id.isNotEmpty)
-            .cast<String>()
-            .toSet()
-            .toList();
+    final ids = driverIds
+        .map((id) => id?.toString())
+        .where((id) => id != null && id.isNotEmpty)
+        .cast<String>()
+        .toSet()
+        .toList();
 
     if (ids.isEmpty) return {};
 
@@ -39,7 +44,36 @@ class DashboardService {
     return License.fromJson(enrichedRow);
   }
 
-  // Get dashboard statistics
+  bool _isMissingColumnError(Object error, String expectedColumn) {
+    return error is PostgrestException &&
+        error.code == '42703' &&
+        error.message.contains(expectedColumn);
+  }
+
+  Future<Map<String, dynamic>?> _getLicenseRow(String licenseNumber) async {
+    for (final column in _licenseIdentifierColumns) {
+      try {
+        final response = await _client
+            .from('licenses')
+            .select()
+            .eq(column, licenseNumber)
+            .maybeSingle()
+            .timeout(_requestTimeout);
+
+        if (response != null) {
+          return Map<String, dynamic>.from(response);
+        }
+      } catch (error) {
+        if (_isMissingColumnError(error, column)) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    return null;
+  }
+
   Future<DashboardStats> getDashboardStats() async {
     try {
       final today = DateTime.now();
@@ -94,59 +128,101 @@ class DashboardService {
     }
   }
 
-  // Record a verification
-  Future<void> recordVerification(String registrationNumber) async {
-    try {
-      await _client.from('verifications').insert({
-        'registration_number': registrationNumber,
+  Future<void> recordVerification(String licenseNumber) async {
+    final payloads = [
+      {
+        'license_number': licenseNumber,
         'verified_at': DateTime.now().toIso8601String(),
-      });
-    } catch (e) {
-      throw Exception('Failed to record verification: $e');
+      },
+      {
+        'register_number': licenseNumber,
+        'verified_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'registration_number': licenseNumber,
+        'verified_at': DateTime.now().toIso8601String(),
+      },
+    ];
+
+    Object? lastError;
+    for (final payload in payloads) {
+      try {
+        await _client.from('verifications').insert(payload);
+        return;
+      } catch (error) {
+        if (error is PostgrestException && error.code == '42703') {
+          lastError = error;
+          continue;
+        }
+        throw Exception('Failed to record verification: $error');
+      }
     }
+
+    throw Exception('Failed to record verification: $lastError');
   }
 
-  // Check if license is valid
-  Future<bool> isValidLicense(String registrationNumber) async {
-    try {
-      final now = DateTime.now();
-      final today =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final response =
-          await _client
-              .from('licenses')
-              .select('id, register_number, status, expiry_date')
-              .eq('register_number', registrationNumber)
-              .eq('status', 'active')
-              .gte('expiry_date', today)
-              .maybeSingle();
+  Future<Map<String, dynamic>?> getLatestVerificationForLicense({
+    required String licenseNumber,
+    DateTime? verifiedAfter,
+  }) async {
+    for (final column in _licenseIdentifierColumns) {
+      try {
+        var query = _client.from('verifications').select().eq(column, licenseNumber);
+        if (verifiedAfter != null) {
+          query = query.gte('verified_at', verifiedAfter.toIso8601String());
+        }
 
-      return response != null;
-    } catch (e) {
+        final response = await query
+            .order('verified_at', ascending: false)
+            .limit(1)
+            .maybeSingle()
+            .timeout(_requestTimeout);
+
+        if (response != null) {
+          return Map<String, dynamic>.from(response);
+        }
+      } catch (error) {
+        if (_isMissingColumnError(error, column)) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    return null;
+  }
+
+  Future<bool> isValidLicense(String licenseNumber) async {
+    try {
+      final row = await _getLicenseRow(licenseNumber);
+      if (row == null) return false;
+
+      final status = row['status']?.toString().toLowerCase() ?? '';
+      if (status != 'active') return false;
+
+      final expiryDate = DateTime.tryParse(row['expiry_date']?.toString() ?? '');
+      if (expiryDate == null) return false;
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      return !expiryDate.isBefore(today);
+    } catch (_) {
       return false;
     }
   }
 
-  // Get full license details
-  Future<License?> getLicenseDetails(String registrationNumber) async {
+  Future<License?> getLicenseDetails(String licenseNumber) async {
     try {
-      final response = await _client
-          .from('licenses')
-          .select()
-          .eq('register_number', registrationNumber)
-          .maybeSingle()
-          .timeout(_requestTimeout);
-
+      final response = await _getLicenseRow(licenseNumber);
       if (response != null) {
         return _buildLicenseFromRow(response);
       }
       return null;
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
-  // Get all licenses for search
   Future<List<License>> getAllLicenses() async {
     try {
       final response = await _client
@@ -158,31 +234,25 @@ class DashboardService {
         licenses.map((license) => license['driver_id']),
       );
 
-      return licenses
-          .map((json) {
-            final enriched = Map<String, dynamic>.from(json as Map<String, dynamic>);
-            enriched['owner_name'] =
-                driverNames[enriched['driver_id']?.toString()] ?? '';
-            return License.fromJson(enriched);
-          })
-          .toList();
+      return licenses.map((json) {
+        final enriched = Map<String, dynamic>.from(json as Map<String, dynamic>);
+        enriched['owner_name'] = driverNames[enriched['driver_id']?.toString()] ?? '';
+        return License.fromJson(enriched);
+      }).toList();
     } catch (e) {
       throw Exception('Failed to fetch licenses: $e');
     }
   }
 
-  // Verify and record license (with validation)
-  Future<bool> verifyAndRecordLicense(String registrationNumber) async {
+  Future<bool> verifyAndRecordLicense(String licenseNumber) async {
     try {
-      // Check if license is valid
-      final isValid = await isValidLicense(registrationNumber);
+      final isValid = await isValidLicense(licenseNumber);
       if (!isValid) {
-        return false; // License not found or inactive
+        return false;
       }
 
-      // Record the verification
-      await recordVerification(registrationNumber);
-      return true; // Success
+      await recordVerification(licenseNumber);
+      return true;
     } catch (e) {
       throw Exception('Failed to verify license: $e');
     }

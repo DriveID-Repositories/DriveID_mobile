@@ -1,7 +1,7 @@
 class Offense {
   final String id;
   final String name;
-  final String registrationNumber;
+  final String licenseNumber;
   final String offenseType;
   final String location;
   final String status;
@@ -11,7 +11,7 @@ class Offense {
   Offense({
     required this.id,
     required this.name,
-    required this.registrationNumber,
+    required this.licenseNumber,
     required this.offenseType,
     required this.location,
     required this.status,
@@ -23,11 +23,21 @@ class Offense {
     return Offense(
       id: json['id'] as String,
       name: json['name'] as String,
-      registrationNumber: json['registration_number'] as String,
+      licenseNumber:
+          (json['license_number'] ??
+                  json['registration_number'] ??
+                  json['register_number'])
+              as String,
       offenseType: json['offense_type'] as String,
       location: json['location'] as String,
       status: json['status'] as String,
-      fine: json['fine'] as String,
+      fine:
+          (json['fine'] ??
+                  json['amount'] ??
+                  json['penalty_amount'] ??
+                  json['penalty'] ??
+                  'TBD')
+              .toString(),
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -36,7 +46,7 @@ class Offense {
     return {
       'id': id,
       'name': name,
-      'registration_number': registrationNumber,
+      'license_number': licenseNumber,
       'offense_type': offenseType,
       'location': location,
       'status': status,

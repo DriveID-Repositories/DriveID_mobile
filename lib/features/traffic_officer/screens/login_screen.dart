@@ -1,5 +1,6 @@
 // lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/app_user.dart';
 import '../../../core/theme/app_theme.dart';
 import '../services/auth_service.dart';
@@ -78,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _navigateForRole(AppUser user) {
     final Widget destination;
     if (user.isDriver) {
-      destination = const DriverDashboard();
+      destination = DriverDashboard();
     } else if (user.isTrafficOfficer) {
       destination = const DashboardScreen();
     } else {
@@ -92,23 +93,32 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // eSignet Login (Removed for testing)
-  // Future<void> _signInWithESignet() async {
-  //   setState(() => _isLoading = true);
+  Future<void> _signInWithESignet() async {
+    setState(() => _isLoading = true);
 
-  //   try {
-  //     final url = AuthService.getAuthorizationUrl();
-  //     final uri = Uri.parse(url);
-  //     if (await canLaunchUrl(uri)) {
-  //       await launchUrl(uri, mode: LaunchMode.externalApplication);
-  //     } else {
-  //       throw 'Could not launch $url';
-  //     }
-  //   } catch (e) {
-  //     _showSnackBar('Error launching browser: $e', AppTheme.error);
-  //     setState(() => _isLoading = false);
-  //   }
-  // }
+    try {
+      final url = AuthService.getAuthorizationUrl();
+      final uri = Uri.parse(url);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        throw Exception('Could not launch eSignet');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar(
+        'Error launching eSignet: ${e.toString().replaceFirst('Exception: ', '')}',
+        AppTheme.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -325,10 +335,7 @@ class _LoginScreenState extends State<LoginScreen> {
       child: ElevatedButton(
         onPressed: _isLoading
             ? null
-            : () => _showSnackBar(
-                'eSignet login will be enabled later',
-                AppTheme.warning,
-              ),
+            : _signInWithESignet,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.gold,
           foregroundColor: Colors.black,

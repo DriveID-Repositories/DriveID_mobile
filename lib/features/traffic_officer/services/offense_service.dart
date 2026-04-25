@@ -1,24 +1,139 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../core/config/supabase_config.dart';
 import '../models/license.dart';
-import 'dashboard_service.dart';
 import '../models/offense.dart';
+import 'dashboard_service.dart';
 
 class OffenseService {
   final SupabaseClient _client = SupabaseConfig.client;
   final DashboardService _dashboardService = DashboardService();
   static const Duration _requestTimeout = Duration(seconds: 4);
+  static const List<String> _identifierColumns = [
+    'license_number',
+    'register_number',
+    'registration_number',
+  ];
 
-  // Validate license exists
-  Future<License?> validateLicense(String registrationNumber) async {
+  bool _isMissingColumnError(Object error, String expectedColumn) {
+    return error is PostgrestException &&
+        error.code == '42703' &&
+        error.message.contains(expectedColumn);
+  }
+
+  String _mapIdentifierKey(Map<String, dynamic> payload) {
+    if (payload.containsKey('license_number')) return 'license_number';
+    if (payload.containsKey('register_number')) return 'register_number';
+    return 'registration_number';
+  }
+
+  Future<Map<String, dynamic>> _insertPayloadWithCompatibility(
+    Map<String, dynamic> payload,
+  ) async {
+    final attempts = <Map<String, dynamic>>[
+      Map<String, dynamic>.from(payload),
+    ];
+
+    if (payload.containsKey('license_number')) {
+      attempts.add(
+        Map<String, dynamic>.from(payload)
+          ..remove('license_number')
+          ..['register_number'] = payload['license_number'],
+      );
+      attempts.add(
+        Map<String, dynamic>.from(payload)
+          ..remove('license_number')
+          ..['registration_number'] = payload['license_number'],
+      );
+    }
+
+    for (final attempt in attempts) {
+      var current = Map<String, dynamic>.from(attempt);
+
+      while (true) {
+        try {
+          final response = await _client
+              .from('offenses')
+              .insert(current)
+              .select()
+              .single()
+              .timeout(_requestTimeout);
+          return Map<String, dynamic>.from(response);
+        } catch (error) {
+          if (error is! PostgrestException || error.code != '42703') {
+            rethrow;
+          }
+
+          const removableColumns = ['fine', 'status', 'location', 'name'];
+          final missingColumn = removableColumns.cast<String?>().firstWhere(
+            (column) => column != null && error.message.contains(column),
+            orElse: () => null,
+          );
+
+          if (missingColumn != null && current.containsKey(missingColumn)) {
+            current.remove(missingColumn);
+            continue;
+          }
+
+          final identifierKey = _mapIdentifierKey(current);
+          if (error.message.contains(identifierKey)) {
+            break;
+          }
+
+          rethrow;
+        }
+      }
+    }
+
+    throw Exception('Failed to insert offense with available schema');
+  }
+
+  Future<List<Offense>> _fetchOffensesByIdentifier(String identifier) async {
+    for (final column in _identifierColumns) {
+      try {
+        final response = await _client
+            .from('offenses')
+            .select()
+            .eq(column, identifier)
+            .order('created_at', ascending: false)
+            .timeout(_requestTimeout, onTimeout: () => []);
+
+        final offenses = (response as List<dynamic>?) ?? [];
+        return offenses
+            .map((json) => Offense.fromJson(json as Map<String, dynamic>))
+            .toList();
+      } catch (error) {
+        if (_isMissingColumnError(error, column)) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    return [];
+  }
+
+  Future<Offense> _insertOffenseWithSchemaFallback(
+    Map<String, dynamic> payload,
+  ) async {
+    final response = await _insertPayloadWithCompatibility(payload);
+    return Offense.fromJson(response);
+  }
+
+  Future<void> _insertOffenseRecordWithSchemaFallback(
+    Map<String, dynamic> payload,
+  ) async {
+    await _insertPayloadWithCompatibility(payload);
+  }
+
+  Future<License?> validateLicense(String licenseNumber) async {
     try {
-      return await _dashboardService.getLicenseDetails(registrationNumber);
-    } catch (e) {
+      return await _dashboardService.getLicenseDetails(licenseNumber);
+    } catch (_) {
       return null;
     }
   }
 
-  // Get all offenses
   Future<List<Offense>> getOffenses() async {
     try {
       final response = await _client
@@ -35,7 +150,14 @@ class OffenseService {
     }
   }
 
-  // Get offense types
+  Future<List<Offense>> getOffensesByLicenseNumber(String licenseNumber) async {
+    try {
+      return _fetchOffensesByIdentifier(licenseNumber);
+    } catch (e) {
+      throw Exception('Failed to fetch driver offenses: $e');
+    }
+  }
+
   Future<List<OffenseType>> getOffenseTypes() async {
     try {
       final response = await _client
@@ -45,107 +167,79 @@ class OffenseService {
           .timeout(_requestTimeout, onTimeout: () => []);
 
       final offenseTypes = (response as List<dynamic>?) ?? [];
-
       if (offenseTypes.isEmpty) {
         return [];
       }
 
-      final mapped =
-          offenseTypes.map((json) {
-            return OffenseType.fromJson(json as Map<String, dynamic>);
-          }).toList();
-
-      return mapped;
-    } catch (e) {
-      return []; // Return empty list instead of throwing
+      return offenseTypes
+          .map((json) => OffenseType.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
     }
   }
 
-  // Create a new offense
   Future<Offense> createOffense({
     required String name,
-    required String registrationNumber,
+    required String licenseNumber,
     required String offenseTypeId,
     required String offenseType,
     required String location,
     required String fine,
   }) async {
     try {
-      // Validate: Check if license exists in licenses table
-      final license = await _dashboardService.getLicenseDetails(
-        registrationNumber,
-      );
+      final license = await _dashboardService.getLicenseDetails(licenseNumber);
       if (license == null) {
-        throw Exception('License not found - registration number is invalid');
+        throw Exception('License not found - license number is invalid');
       }
 
-      final response =
-          await _client
-              .from('offenses')
-              .insert({
-                'name': name,
-                'registration_number': registrationNumber,
-                'offense_type_id': offenseTypeId,
-                'offense_type': offenseType,
-                'location': location,
-                'status': 'Pending',
-                'fine': fine,
-              })
-              .select()
-              .single()
-              .timeout(_requestTimeout);
-
-      return Offense.fromJson(response);
+      return _insertOffenseWithSchemaFallback({
+        'name': name,
+        'license_number': licenseNumber,
+        'offense_type_id': offenseTypeId,
+        'offense_type': offenseType,
+        'location': location,
+        'status': 'Pending',
+        'fine': fine,
+      });
     } catch (e) {
       throw Exception('Failed to create offense: $e');
     }
   }
 
-  // Record offense for a verified license (with validation)
   Future<void> recordOffenseForLicense({
     required String licenseId,
     required String licenseOwnerName,
-    required String registrationNumber,
+    required String licenseNumber,
     required String offenseType,
     required String location,
     required String fine,
   }) async {
     try {
-      if (registrationNumber.isEmpty) {
-        throw Exception('Registration number is required');
+      if (licenseNumber.isEmpty) {
+        throw Exception('License number is required');
       }
 
-      // Validate: Check if license exists and was verified
-      final license = await _dashboardService.getLicenseDetails(
-        registrationNumber,
-      );
+      final license = await _dashboardService.getLicenseDetails(licenseNumber);
       if (license == null) {
         throw Exception('License not found - cannot record offense');
       }
 
-      // Check if this license was recently verified
       final now = DateTime.now();
       final oneHourAgo = now.subtract(const Duration(hours: 1));
-
-      final verificationCheck =
-          await _client
-              .from('verifications')
-              .select()
-              .eq('registration_number', registrationNumber)
-              .gte('verified_at', oneHourAgo.toIso8601String())
-              .order('verified_at', ascending: false)
-              .limit(1)
-              .maybeSingle()
-              .timeout(_requestTimeout);
+      final verificationCheck = await _dashboardService
+          .getLatestVerificationForLicense(
+            licenseNumber: licenseNumber,
+            verifiedAfter: oneHourAgo,
+          );
 
       if (verificationCheck == null) {
         throw Exception('License must be verified before recording an offense');
       }
 
-      // Record the offense with only valid Supabase columns
-      await _client.from('offenses').insert({
+      await _insertOffenseRecordWithSchemaFallback({
         'name': licenseOwnerName,
-        'registration_number': registrationNumber,
+        'license_number': licenseNumber,
         'offense_type': offenseType,
         'location': location,
         'status': 'Pending',
@@ -156,13 +250,9 @@ class OffenseService {
     }
   }
 
-  // Update offense status
   Future<void> updateOffenseStatus(String offenseId, String status) async {
     try {
-      await _client
-          .from('offenses')
-          .update({'status': status})
-          .eq('id', offenseId);
+      await _client.from('offenses').update({'status': status}).eq('id', offenseId);
     } catch (e) {
       throw Exception('Failed to update offense status: $e');
     }

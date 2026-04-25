@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../../core/utils/license_qr.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/custom_appbar.dart';
 import '../widgets/custom_bottom_nav.dart';
@@ -8,6 +9,7 @@ import '../widgets/offense_form.dart';
 import '../services/dashboard_service.dart';
 import '../services/offense_service.dart';
 import '../models/license.dart';
+import '../models/offense.dart';
 import 'dashboard_screen.dart';
 import 'offenses_screen.dart';
 
@@ -28,6 +30,7 @@ class _VerifyScreenState extends State<VerifyScreen>
   bool _showOffenseForm = false;
 
   License? _verificationLicense;
+  List<Offense> _verificationOffenses = [];
   String? _verificationMessage;
   VerificationStatus _verificationStatus = VerificationStatus.none;
   List<String> _offenseTypes = [];
@@ -42,6 +45,8 @@ class _VerifyScreenState extends State<VerifyScreen>
   final DashboardService _dashboardService = DashboardService();
   final OffenseService _offenseService = OffenseService();
   final TextEditingController _manualController = TextEditingController();
+
+  String get _licensePrefix => 'DLV${DateTime.now().year}';
 
   @override
   void initState() {
@@ -107,7 +112,7 @@ class _VerifyScreenState extends State<VerifyScreen>
             ),
             const SizedBox(height: 6),
             const Text(
-              "Scan QR code or search by register number",
+              "Scan QR code or search by license number",
               style: TextStyle(
                 fontSize: 14,
                 color: AppTheme.textSecondary,
@@ -409,7 +414,7 @@ class _VerifyScreenState extends State<VerifyScreen>
                     fontSize: 16,
                   ),
                   decoration: const InputDecoration(
-                    hintText: "Enter 14-digit register number",
+                    hintText: "Enter license number",
                     hintStyle: TextStyle(color: AppTheme.textLight),
                     border: InputBorder.none,
                     prefixIcon: Icon(Icons.search_outlined, color: AppTheme.gold),
@@ -429,7 +434,7 @@ class _VerifyScreenState extends State<VerifyScreen>
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        "Format: 14-digit number (e.g., 20260104008973)",
+                        "Format: DLV${DateTime.now().year} plus 5 digits (e.g., DLV${DateTime.now().year}70394)",
                         style: TextStyle(
                           fontSize: 11,
                           color: AppTheme.textLight,
@@ -524,6 +529,7 @@ class _VerifyScreenState extends State<VerifyScreen>
         SingleChildScrollView(
           child: VerificationResultCard(
             license: _verificationLicense!,
+            offenses: _verificationOffenses,
             onRecordOffense: () => setState(() => _showOffenseForm = true),
           ),
         ),
@@ -565,13 +571,18 @@ class _VerifyScreenState extends State<VerifyScreen>
       await _offenseService.recordOffenseForLicense(
         licenseId: _verificationLicense!.id,
         licenseOwnerName: _verificationLicense!.ownerName,
-        registrationNumber: _verificationLicense!.registerNumber,
+        licenseNumber: _verificationLicense!.registerNumber,
         offenseType: formData.offenseType,
         location: formData.location,
         fine: formData.fine ?? 'TBD',
       );
       if (mounted) {
-        setState(() => _showOffenseForm = false);
+        final refreshedOffenses = await _offenseService
+            .getOffensesByLicenseNumber(_verificationLicense!.registerNumber);
+        setState(() {
+          _showOffenseForm = false;
+          _verificationOffenses = refreshedOffenses;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Offense recorded successfully'),
@@ -596,6 +607,7 @@ class _VerifyScreenState extends State<VerifyScreen>
       _verificationStatus = VerificationStatus.none;
       _verificationMessage = null;
       _verificationLicense = null;
+      _verificationOffenses = [];
       _showOffenseForm = false;
       isScanned = false;
       _manualController.clear();
@@ -604,7 +616,7 @@ class _VerifyScreenState extends State<VerifyScreen>
 
   void _onQRScanned(String code) async {
     try {
-      await _verifyLicense(code);
+      await _verifyScannedQr(code);
     } finally {
       setState(() => isScanned = false);
     }
@@ -612,16 +624,20 @@ class _VerifyScreenState extends State<VerifyScreen>
 
   void _onManualVerify() async {
     FocusScope.of(context).unfocus();
-    final regNumber = _manualController.text.trim();
+    final regNumber = _manualController.text.trim().toUpperCase();
     if (regNumber.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a registration number')),
+        const SnackBar(content: Text('Please enter a license number')),
       );
       return;
     }
-    if (!RegExp(r'^\d{14}$').hasMatch(regNumber)) {
+    if (!_isValidRegistrationNumber(regNumber)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid registration number format')),
+        SnackBar(
+          content: Text(
+            'Invalid format. Use $_licensePrefix followed by 5 digits.',
+          ),
+        ),
       );
       return;
     }
@@ -634,13 +650,14 @@ class _VerifyScreenState extends State<VerifyScreen>
     }
   }
 
-  Future<void> _verifyLicense(String registrationNumber) async {
+  Future<void> _verifyLicense(String licenseNumber) async {
     try {
       final success = await _dashboardService.verifyAndRecordLicense(
-        registrationNumber,
+        licenseNumber,
       );
-      final license = await _dashboardService.getLicenseDetails(
-        registrationNumber,
+      final license = await _dashboardService.getLicenseDetails(licenseNumber);
+      final offenses = await _offenseService.getOffensesByLicenseNumber(
+        licenseNumber,
       );
       if (!mounted) return;
       if (success && license != null) {
@@ -648,18 +665,21 @@ class _VerifyScreenState extends State<VerifyScreen>
           _verificationStatus = VerificationStatus.success;
           _verificationMessage = 'License verified and recorded';
           _verificationLicense = license;
+          _verificationOffenses = offenses;
         });
       } else if (license != null) {
         setState(() {
           _verificationStatus = VerificationStatus.inactive;
           _verificationMessage = 'License is inactive or expired';
           _verificationLicense = license;
+          _verificationOffenses = offenses;
         });
       } else {
         setState(() {
           _verificationStatus = VerificationStatus.notFound;
           _verificationMessage = 'License not found in the system';
           _verificationLicense = null;
+          _verificationOffenses = [];
         });
       }
     } catch (e) {
@@ -668,7 +688,60 @@ class _VerifyScreenState extends State<VerifyScreen>
         _verificationStatus = VerificationStatus.error;
         _verificationMessage = 'Verification error: $e';
         _verificationLicense = null;
+        _verificationOffenses = [];
       });
     }
+  }
+
+  Future<void> _verifyScannedQr(String rawCode) async {
+    final parsed = LicenseQrPayload.parse(rawCode);
+
+    if (!parsed.isValid) {
+      if (!mounted) return;
+      setState(() {
+        _verificationStatus = VerificationStatus.error;
+        _verificationMessage = parsed.error ?? 'Invalid QR code';
+        _verificationLicense = null;
+      });
+      return;
+    }
+
+    if (parsed.isStructured && !parsed.payload!.isFresh) {
+      if (!mounted) return;
+      setState(() {
+        _verificationStatus = VerificationStatus.error;
+        _verificationMessage =
+            'This QR code has expired. Ask the driver to refresh their license card.';
+        _verificationLicense = null;
+      });
+      return;
+    }
+
+    await _verifyLicense(parsed.registerNumber);
+
+    if (!mounted || _verificationLicense == null || !parsed.isStructured) {
+      return;
+    }
+
+    final payload = parsed.payload!;
+    final license = _verificationLicense!;
+    final matchesLiveRecord =
+        license.id == payload.licenseId &&
+        license.registerNumber == payload.registerNumber;
+
+    if (!matchesLiveRecord) {
+      setState(() {
+        _verificationStatus = VerificationStatus.error;
+        _verificationMessage =
+            'QR details do not match the current Supabase license record.';
+        _verificationLicense = null;
+        _verificationOffenses = [];
+      });
+    }
+  }
+
+  bool _isValidRegistrationNumber(String value) {
+    final pattern = RegExp('^${RegExp.escape(_licensePrefix)}\\d{5}\$');
+    return pattern.hasMatch(value);
   }
 }

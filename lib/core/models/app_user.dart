@@ -59,14 +59,18 @@ class AppUser {
   
   String get licenseNumber {
     if (isDriver && license != null) {
-      return license!['register_number'] ?? 'Not issued';
+      return license!['license_number'] ??
+          license!['register_number'] ??
+          'Not issued';
     }
     return 'N/A';
   }
   
   String get licenseType {
     if (isDriver && license != null) {
-      return license!['license_type'] ?? 'N/A';
+      return license!['license_type'] ??
+          license!['license_class'] ??
+          'N/A';
     }
     return 'N/A';
   }

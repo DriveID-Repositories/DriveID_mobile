@@ -17,17 +17,13 @@ class License {
     this.profilePictureUrl,
   });
 
-  // ================= SAFE STRING HELPER =================
-  static String _str(dynamic value) {
-    return value?.toString() ?? '';
-  }
+  static String _str(dynamic value) => value?.toString() ?? '';
 
   static Map<String, dynamic>? _map(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     return null;
   }
 
-  // ================= FROM JSON =================
   factory License.fromJson(Map<String, dynamic> json) {
     final driver = _map(json['drivers']);
     final ownerName = _str(json['owner_name']).isNotEmpty
@@ -39,32 +35,34 @@ class License {
 
     return License(
       id: _str(json['id']),
-      registerNumber: _str(json['register_number']),
+      registerNumber: _str(
+        json['license_number'] ??
+            json['register_number'] ??
+            json['registration_number'],
+      ),
       ownerName: ownerName,
       licenseType: licenseType,
-      expiryDate:
-          json['expiry_date'] != null
-              ? DateTime.parse(json['expiry_date'].toString())
-              : DateTime.now(),
-      status: _str(json['status']),
-      profilePictureUrl: json['profile_picture_url'] as String?,
+      expiryDate: json['expiry_date'] != null
+          ? DateTime.parse(json['expiry_date'].toString())
+          : DateTime.now(),
+      status: _str(json['license_status'] ?? json['status']),
+      profilePictureUrl:
+          (json['profile_picture_url'] ?? json['photo_url']) as String?,
     );
   }
 
-  // ================= TO JSON (OPTIONAL BUT IMPORTANT) =================
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'register_number': registerNumber,
+      'license_number': registerNumber,
       'owner_name': ownerName,
-      'license_type': licenseType,
+      'license_class': licenseType,
       'expiry_date': expiryDate.toIso8601String(),
-      'status': status,
+      'license_status': status,
       'profile_picture_url': profilePictureUrl,
     };
   }
 
-  // ================= BUSINESS LOGIC =================
   bool get isExpired => expiryDate.isBefore(DateTime.now());
 
   bool get isRevoked => status.toLowerCase() == 'revoked';

@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
+import 'package:flutter/material.dart';
 import 'core/config/supabase_config.dart';
+import 'core/models/app_user.dart';
+import 'core/theme/app_theme.dart';
 import 'features/driver/driver_dashboard.dart';
 import 'features/traffic_officer/screens/dashboard_screen.dart';
 import 'features/traffic_officer/screens/login_screen.dart';
 import 'features/traffic_officer/services/auth_service.dart';
-import 'core/theme/app_theme.dart';
-import 'core/models/app_user.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,11 +55,8 @@ class _MyAppState extends State<MyApp> {
             final idToken = tokenData['id_token'];
             if (accessToken != null && idToken != null) {
               await AuthService.storeTokens(accessToken, idToken);
-              // Navigate to home
               if (mounted) {
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil('/', (_) => false);
+                Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
               }
             } else {
               _showError('Invalid token response');
@@ -94,7 +91,7 @@ class _MyAppState extends State<MyApp> {
         '/': (context) => const AuthWrapper(),
         '/login': (context) => const LoginScreen(),
         '/traffic-dashboard': (context) => const DashboardScreen(),
-        '/driver-dashboard': (context) => const DriverDashboard(),
+        '/driver-dashboard': (context) => DriverDashboard(),
       },
     );
   }
@@ -118,22 +115,31 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   Future<void> _checkLoginStatus() async {
-    final user = await AuthService.currentUser;
-    if (user != null && !user.canAccessMobile) {
+    try {
+      final user = await AuthService.currentUser;
+      if (user != null && !user.canAccessMobile) {
+        await AuthService.logout();
+        if (!mounted) return;
+        setState(() {
+          _user = null;
+          _isChecking = false;
+        });
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _user = user;
+        _isChecking = false;
+      });
+    } catch (_) {
       await AuthService.logout();
       if (!mounted) return;
       setState(() {
         _user = null;
         _isChecking = false;
       });
-      return;
     }
-
-    if (!mounted) return;
-    setState(() {
-      _user = user;
-      _isChecking = false;
-    });
   }
 
   @override
@@ -141,9 +147,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
     if (_isChecking) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
     if (_user?.isDriver == true) {
-      return const DriverDashboard();
+      return DriverDashboard();
     }
     if (_user?.isTrafficOfficer == true) {
       return const DashboardScreen();
