@@ -4,6 +4,8 @@ import '../../../core/config/supabase_config.dart';
 import '../models/license.dart';
 import '../models/offense.dart';
 import 'dashboard_service.dart';
+import 'sync_service.dart';
+import '../../../core/services/local_database_service.dart';
 
 class OffenseService {
   final SupabaseClient _client = SupabaseConfig.client;
@@ -160,7 +162,7 @@ class OffenseService {
     }
   }
 
-  Future<List<OffenseType>> getOffenseTypes() async {
+  Future<List<Map<String, dynamic>>> getOffenseTypesRaw() async {
     try {
       final response = await _client
           .from('offense_types')
@@ -168,17 +170,21 @@ class OffenseService {
           .order('label')
           .timeout(_requestTimeout, onTimeout: () => []);
 
-      final offenseTypes = (response as List<dynamic>?) ?? [];
-      if (offenseTypes.isEmpty) {
-        return [];
-      }
-
-      return offenseTypes
-          .map((json) => OffenseType.fromJson(json as Map<String, dynamic>))
-          .toList();
+      return (response as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
     } catch (_) {
       return [];
     }
+  }
+
+  Future<List<OffenseType>> getOffenseTypes() async {
+    if (!await SyncService().isOnline()) {
+      final cached = LocalDatabaseService.getCachedOffenseTypes();
+      return cached.map((json) => OffenseType.fromJson(json)).toList();
+    }
+    
+    final raw = await getOffenseTypesRaw();
+    await LocalDatabaseService.cacheOffenseTypes(raw);
+    return raw.map((json) => OffenseType.fromJson(json)).toList();
   }
 
   Future<Offense> createOffense({
@@ -195,7 +201,7 @@ class OffenseService {
         throw Exception('License not found - license number is invalid');
       }
 
-      return _insertOffenseWithSchemaFallback({
+      final payload = {
         'name': name,
         'license_number': licenseNumber,
         'offense_type_id': offenseTypeId,
@@ -203,7 +209,15 @@ class OffenseService {
         'location': location,
         'status': 'Pending',
         'fine': fine,
-      });
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      if (!await SyncService().isOnline()) {
+        await LocalDatabaseService.savePendingOffense(payload);
+        return Offense.fromJson(payload);
+      }
+
+      return _insertOffenseWithSchemaFallback(payload);
     } catch (e) {
       throw Exception('Failed to create offense: $e');
     }
@@ -227,6 +241,21 @@ class OffenseService {
         throw Exception('License not found - cannot record offense');
       }
 
+      final payload = {
+        'name': licenseOwnerName,
+        'license_number': licenseNumber,
+        'offense_type': offenseType,
+        'location': location,
+        'status': 'Pending',
+        'fine': fine,
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      if (!await SyncService().isOnline()) {
+        await LocalDatabaseService.savePendingOffense(payload);
+        return;
+      }
+
       final now = DateTime.now();
       final oneHourAgo = now.subtract(const Duration(hours: 1));
       final verificationCheck = await _dashboardService
@@ -239,17 +268,14 @@ class OffenseService {
         throw Exception('License must be verified before recording an offense');
       }
 
-      await _insertOffenseRecordWithSchemaFallback({
-        'name': licenseOwnerName,
-        'license_number': licenseNumber,
-        'offense_type': offenseType,
-        'location': location,
-        'status': 'Pending',
-        'fine': fine,
-      }).timeout(_requestTimeout);
+      await _insertOffenseRecordWithSchemaFallback(payload).timeout(_requestTimeout);
     } catch (e) {
       throw Exception('Failed to record offense: $e');
     }
+  }
+
+  Future<void> recordOffenseRecordDirectly(Map<String, dynamic> payload) async {
+    await _insertOffenseRecordWithSchemaFallback(payload);
   }
 
   Future<void> updateOffenseStatus(String offenseId, String status) async {

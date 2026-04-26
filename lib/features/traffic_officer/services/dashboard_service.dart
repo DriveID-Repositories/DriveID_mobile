@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/license.dart';
 import '../../../core/config/supabase_config.dart';
 import '../models/dashboard_stats.dart';
+import 'sync_service.dart';
+import '../../../core/services/local_database_service.dart';
 
 class DashboardService {
   final SupabaseClient _client = SupabaseConfig.client;
@@ -144,6 +146,15 @@ class DashboardService {
 
   Future<void> recordVerification(String licenseNumber) async {
     final nowUtc = DateTime.now().toUtc().toIso8601String();
+
+    if (!await SyncService().isOnline()) {
+      await LocalDatabaseService.savePendingVerification({
+        'license_number': licenseNumber,
+        'verified_at': nowUtc,
+      });
+      return;
+    }
+
     final payloads = [
       {
         'registration_number': licenseNumber,
@@ -214,7 +225,10 @@ class DashboardService {
 
   Future<bool> isValidLicense(String licenseNumber) async {
     try {
-      final row = await _getLicenseRow(licenseNumber);
+      final row = await SyncService().isOnline() 
+          ? await _getLicenseRow(licenseNumber)
+          : LocalDatabaseService.getLicense(licenseNumber);
+          
       if (row == null) return false;
 
       final status = (row['license_status'] ?? row['status'])?.toString() ?? '';
@@ -233,9 +247,15 @@ class DashboardService {
 
   Future<License?> getLicenseDetails(String licenseNumber) async {
     try {
-      final response = await _getLicenseRow(licenseNumber);
-      if (response != null) {
-        return _buildLicenseFromRow(response);
+      final row = await SyncService().isOnline() 
+          ? await _getLicenseRow(licenseNumber)
+          : LocalDatabaseService.getLicense(licenseNumber);
+          
+      if (row != null) {
+        if (!await SyncService().isOnline()) {
+           return License.fromJson(row); // Offline licenses already have owner_name included from cache
+        }
+        return _buildLicenseFromRow(row);
       }
       return null;
     } catch (_) {
@@ -243,18 +263,14 @@ class DashboardService {
     }
   }
 
-  Future<List<License>> getAllLicenses() async {
+  Future<List<Map<String, dynamic>>> getAllLicensesRaw() async {
     try {
       final response = await _client
           .from('licenses')
           .select()
           .timeout(_requestTimeout, onTimeout: () => []);
       final licenses = (response as List<dynamic>?) ?? [];
-      log('Found ${licenses.length} licenses in database');
-      for (var i = 0; i < licenses.length; i++) {
-        final license = licenses[i] as Map<String, dynamic>;
-        log('License ${i+1}: ID=${license['id']}, register_number=${license['register_number']}, status=${license['status']}');
-      }
+      
       final driverNames = await _getDriverNamesById(
         licenses.map((license) => license['driver_id']),
       );
@@ -262,8 +278,18 @@ class DashboardService {
       return licenses.map((json) {
         final enriched = Map<String, dynamic>.from(json as Map<String, dynamic>);
         enriched['owner_name'] = driverNames[enriched['driver_id']?.toString()] ?? '';
-        return License.fromJson(enriched);
+        return enriched;
       }).toList();
+    } catch (e) {
+      log('Error fetching all licenses raw: $e');
+      throw Exception('Failed to fetch licenses: $e');
+    }
+  }
+
+  Future<List<License>> getAllLicenses() async {
+    try {
+      final raw = await getAllLicensesRaw();
+      return raw.map((json) => License.fromJson(json)).toList();
     } catch (e) {
       log('Error fetching all licenses: $e');
       throw Exception('Failed to fetch licenses: $e');

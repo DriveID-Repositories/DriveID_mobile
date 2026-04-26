@@ -4,6 +4,9 @@ import '../widgets/custom_appbar.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../services/dashboard_service.dart';
 import '../models/dashboard_stats.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../../../core/services/local_database_service.dart';
+import '../services/sync_service.dart';
 import 'verify_screen.dart';
 import 'offenses_screen.dart';
 
@@ -29,7 +32,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadStats() async {
     try {
+      final isOnline = await SyncService().isOnline();
+      if (!isOnline) {
+        if (!mounted) return;
+        setState(() {
+          _stats = DashboardStats(
+            verificationsToday: LocalDatabaseService.getPendingVerifications().length,
+            offensesRecorded: LocalDatabaseService.getPendingOffenses().length,
+            totalVerifications: 0,
+            pendingOffenses: LocalDatabaseService.getPendingOffenses().length,
+          );
+          _isLoading = false;
+          _lastRefresh = DateTime.now();
+        });
+        return;
+      }
+
+      // We are online, refresh cache in background
+      SyncService().downloadAndCacheData();
+
       final stats = await _dashboardService.getDashboardStats();
+      if (!mounted) return;
       setState(() {
         _stats = stats;
         _isLoading = false;
@@ -101,26 +124,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.cardDark,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.cardBorder),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.refresh, size: 10, color: AppTheme.textSecondary),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatTime(_lastRefresh),
-                          style: const TextStyle(
-                            fontSize: 9,
-                            color: AppTheme.textSecondary,
+                  StreamBuilder<List<ConnectivityResult>>(
+                    stream: Connectivity().onConnectivityChanged,
+                    builder: (context, snapshot) {
+                      final isOffline = snapshot.hasData && 
+                          snapshot.data!.isNotEmpty && 
+                          snapshot.data!.first == ConnectivityResult.none;
+                      
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isOffline ? AppTheme.error.withAlpha(30) : AppTheme.success.withAlpha(30),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isOffline ? AppTheme.error.withAlpha(100) : AppTheme.success.withAlpha(100),
                           ),
                         ),
-                      ],
-                    ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isOffline ? Icons.wifi_off : Icons.wifi,
+                              size: 14,
+                              color: isOffline ? AppTheme.error : AppTheme.success,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              isOffline ? "Offline Mode" : "Online",
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isOffline ? AppTheme.error : AppTheme.success,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
