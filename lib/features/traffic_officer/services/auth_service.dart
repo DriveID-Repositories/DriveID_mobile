@@ -362,7 +362,13 @@ class AuthService {
   static Future<AppUser?> get currentUser async {
     final session = _supabase.auth.currentSession;
     if (session != null) {
-      return await _getUserWithRole(session.user);
+      try {
+        final user = await _getUserWithRole(session.user);
+        if (user != null) return user;
+      } catch (e) {
+        // Fallback to stored user if offline or network error
+      }
+      return await getStoredUser();
     }
     return await getStoredUser();
   }
@@ -404,8 +410,10 @@ class AuthService {
   // ==================== LOGOUT ====================
   
   static Future<void> logout() async {
-    // Sign out from Supabase
-    await _supabase.auth.signOut();
+    // Sign out from Supabase (ignore errors if offline)
+    try {
+      await _supabase.auth.signOut();
+    } catch (_) {}
     
     // Clear secure storage
     await _storage.delete(key: 'access_token');

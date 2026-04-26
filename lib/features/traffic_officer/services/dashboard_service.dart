@@ -5,6 +5,7 @@ import '../models/license.dart';
 import '../../../core/config/supabase_config.dart';
 import '../models/dashboard_stats.dart';
 import 'sync_service.dart';
+import 'auth_service.dart';
 import '../../../core/services/local_database_service.dart';
 
 class DashboardService {
@@ -92,6 +93,10 @@ class DashboardService {
 
   Future<DashboardStats> getDashboardStats() async {
     try {
+      final user = await AuthService.currentUser;
+      final officerId = user?.id;
+      if (officerId == null) throw Exception('No logged-in officer found');
+
       final today = DateTime.now();
       final startOfDay = DateTime(today.year, today.month, today.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
@@ -99,6 +104,7 @@ class DashboardService {
       final futureVerificationsResponse = _client
           .from('verifications')
           .select()
+          .eq('officer_id', officerId)
           .gte('verified_at', startOfDay.toUtc().toIso8601String())
           .lt('verified_at', endOfDay.toUtc().toIso8601String())
           .timeout(_requestTimeout, onTimeout: () => []);
@@ -106,11 +112,13 @@ class DashboardService {
       final futureTotalVerificationsResponse = _client
           .from('verifications')
           .select()
+          .eq('officer_id', officerId)
           .timeout(_requestTimeout, onTimeout: () => []);
 
       final futureOffensesResponse = _client
           .from('offenses')
           .select()
+          .eq('officer_id', officerId)
           .gte('created_at', startOfDay.toUtc().toIso8601String())
           .lt('created_at', endOfDay.toUtc().toIso8601String())
           .timeout(_requestTimeout, onTimeout: () => []);
@@ -118,6 +126,7 @@ class DashboardService {
       final futurePendingOffensesResponse = _client
           .from('offenses')
           .select()
+          .eq('officer_id', officerId)
           .eq('status', 'Pending')
           .timeout(_requestTimeout, onTimeout: () => []);
 
@@ -146,28 +155,40 @@ class DashboardService {
 
   Future<void> recordVerification(String licenseNumber) async {
     final nowUtc = DateTime.now().toUtc().toIso8601String();
+    final user = await AuthService.currentUser;
+    final officerId = user?.id;
+
+    final payload = {
+      'license_number': licenseNumber,
+      'verified_at': nowUtc,
+      if (officerId != null) 'officer_id': officerId,
+    };
 
     if (!await SyncService().isOnline()) {
-      await LocalDatabaseService.savePendingVerification({
-        'license_number': licenseNumber,
-        'verified_at': nowUtc,
-      });
+      await LocalDatabaseService.savePendingVerification(payload);
       return;
     }
 
+    await recordVerificationDirectly(payload);
+  }
+
+  Future<void> recordVerificationDirectly(Map<String, dynamic> basePayload) async {
+    final licenseNumber = basePayload['license_number'] ?? basePayload['registration_number'] ?? basePayload['register_number'];
+    if (licenseNumber == null) return;
+
     final payloads = [
       {
+        ...basePayload,
         'registration_number': licenseNumber,
-        'verified_at': nowUtc,
-      },
+      }..remove('license_number')..remove('register_number'),
       {
+        ...basePayload,
         'register_number': licenseNumber,
-        'verified_at': nowUtc,
-      },
+      }..remove('license_number')..remove('registration_number'),
       {
+        ...basePayload,
         'license_number': licenseNumber,
-        'verified_at': nowUtc,
-      },
+      }..remove('register_number')..remove('registration_number'),
     ];
 
     Object? lastError;
@@ -288,6 +309,10 @@ class DashboardService {
 
   Future<List<License>> getAllLicenses() async {
     try {
+      if (!await SyncService().isOnline()) {
+        final cached = LocalDatabaseService.getAllCachedLicenses();
+        return cached.map((json) => License.fromJson(json)).toList();
+      }
       final raw = await getAllLicensesRaw();
       return raw.map((json) => License.fromJson(json)).toList();
     } catch (e) {

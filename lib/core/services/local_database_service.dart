@@ -46,6 +46,20 @@ class LocalDatabaseService {
     }
     return null;
   }
+
+  static List<Map<String, dynamic>> getAllCachedLicenses() {
+    final Map<String, Map<String, dynamic>> uniqueLicenses = {};
+    for (var value in _licenses.values) {
+      if (value is String) {
+        final decoded = jsonDecode(value) as Map<String, dynamic>;
+        final id = decoded['id']?.toString();
+        if (id != null) {
+          uniqueLicenses[id] = decoded;
+        }
+      }
+    }
+    return uniqueLicenses.values.toList();
+  }
   
   // --- Pending Offenses ---
   static Box get _offenses => Hive.box(offensesBox);

@@ -121,35 +121,12 @@ class _OffenseFormState extends State<OffenseForm> {
                 ],
               ),
               const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'License Owner: ${widget.licenseOwnerName}',
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                  if (_isFetchingLocation)
-                    const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(AppTheme.success),
-                      ),
-                    )
-                  else if (_latitude != null && _longitude != null)
-                    Text(
-                      'GPS ✓ ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
-                      style: const TextStyle(
-                        color: AppTheme.success,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                ],
+              Text(
+                'License Owner: ${widget.licenseOwnerName}',
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(height: 20),
 

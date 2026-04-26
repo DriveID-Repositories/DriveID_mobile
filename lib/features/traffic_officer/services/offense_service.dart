@@ -5,6 +5,7 @@ import '../models/license.dart';
 import '../models/offense.dart';
 import 'dashboard_service.dart';
 import 'sync_service.dart';
+import 'auth_service.dart';
 import '../../../core/services/local_database_service.dart';
 
 class OffenseService {
@@ -140,9 +141,23 @@ class OffenseService {
 
   Future<List<Offense>> getOffenses() async {
     try {
-      final response = await _client
+      if (!await SyncService().isOnline()) {
+        final pending = LocalDatabaseService.getPendingOffenses();
+        return pending.map((json) => Offense.fromJson(Map<String, dynamic>.from(json))).toList();
+      }
+      
+      final user = await AuthService.currentUser;
+      final officerId = user?.id;
+
+      var query = _client
           .from('offenses')
-          .select()
+          .select();
+      
+      if (officerId != null) {
+        query = query.eq('officer_id', officerId);
+      }
+
+      final response = await query
           .order('created_at', ascending: false)
           .timeout(_requestTimeout, onTimeout: () => []);
       final offenses = (response as List<dynamic>?) ?? [];
@@ -156,7 +171,17 @@ class OffenseService {
 
   Future<List<Offense>> getOffensesByLicenseNumber(String licenseNumber) async {
     try {
-      return _fetchOffensesByIdentifier(licenseNumber);
+      if (!await SyncService().isOnline()) {
+        final pending = LocalDatabaseService.getPendingOffenses();
+        final filtered = pending.where((o) => 
+            o['license_number'] == licenseNumber ||
+            o['registration_number'] == licenseNumber ||
+            o['register_number'] == licenseNumber
+        ).toList();
+        return filtered.map((json) => Offense.fromJson(Map<String, dynamic>.from(json))).toList();
+      }
+      
+      return await _fetchOffensesByIdentifier(licenseNumber);
     } catch (e) {
       throw Exception('Failed to fetch driver offenses: $e');
     }
@@ -201,6 +226,9 @@ class OffenseService {
         throw Exception('License not found - license number is invalid');
       }
 
+      final user = await AuthService.currentUser;
+      final officerId = user?.id;
+
       final payload = {
         'name': name,
         'license_number': licenseNumber,
@@ -210,6 +238,7 @@ class OffenseService {
         'status': 'Pending',
         'fine': fine,
         'created_at': DateTime.now().toUtc().toIso8601String(),
+        if (officerId != null) 'officer_id': officerId,
       };
 
       if (!await SyncService().isOnline()) {
@@ -241,6 +270,9 @@ class OffenseService {
         throw Exception('License not found - cannot record offense');
       }
 
+      final user = await AuthService.currentUser;
+      final officerId = user?.id;
+
       final payload = {
         'name': licenseOwnerName,
         'license_number': licenseNumber,
@@ -249,6 +281,7 @@ class OffenseService {
         'status': 'Pending',
         'fine': fine,
         'created_at': DateTime.now().toUtc().toIso8601String(),
+        if (officerId != null) 'officer_id': officerId,
       };
 
       if (!await SyncService().isOnline()) {

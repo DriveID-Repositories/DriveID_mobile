@@ -63,7 +63,7 @@ class SyncService {
       for (int i = verifications.length - 1; i >= 0; i--) {
         final verification = verifications[i];
         try {
-          await _dashboardService.recordVerification(verification['license_number'] ?? verification['registration_number'] ?? verification['register_number']);
+          await _dashboardService.recordVerificationDirectly(verification);
           await LocalDatabaseService.removePendingVerificationAt(i);
         } catch (e) {
           log('Failed to sync verification: $e');

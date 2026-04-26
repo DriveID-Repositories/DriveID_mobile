@@ -21,7 +21,7 @@ class Offense {
 
   factory Offense.fromJson(Map<String, dynamic> json) {
     return Offense(
-      id: json['id'] as String,
+      id: (json['id'] ?? 'pending-${DateTime.now().millisecondsSinceEpoch}').toString(),
       name: json['name'] as String,
       licenseNumber:
           (json['license_number'] ??
