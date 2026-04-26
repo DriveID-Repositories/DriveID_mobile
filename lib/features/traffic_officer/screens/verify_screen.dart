@@ -529,10 +529,32 @@ class _VerifyScreenState extends State<VerifyScreen>
     return Stack(
       children: [
         SingleChildScrollView(
-          child: VerificationResultCard(
-            license: _verificationLicense!,
-            offenses: _verificationOffenses,
-            onRecordOffense: () => setState(() => _showOffenseForm = true),
+          child: Column(
+            children: [
+              VerificationResultCard(
+                license: _verificationLicense!,
+                offenses: _verificationOffenses,
+                onRecordOffense: () => setState(() => _showOffenseForm = true),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _resetVerification,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text("Scan Another", style: TextStyle(fontSize: 15)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    foregroundColor: AppTheme.gold,
+                    side: const BorderSide(color: AppTheme.gold),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
           ),
         ),
         if (_showOffenseForm)

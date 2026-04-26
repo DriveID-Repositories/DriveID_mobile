@@ -39,9 +39,9 @@ def generate_tone(filename, frequency, duration_ms, wave_type='sine', volume=0.5
             wav_file.writeframes(struct.pack('h', sample))
 
 # Success: 1000 Hz, 200ms
-generate_tone('assets/sounds/success_beep.wav', 1200, 200, 'sine', 0.5)
+generate_tone('assets/sounds/success_beep.mp3', 1200, 200, 'sine', 0.5)
 
 # Error: 150 Hz sawtooth, 400ms
-generate_tone('assets/sounds/error_buzzer.wav', 150, 400, 'sawtooth', 0.8)
+generate_tone('assets/sounds/error_buzzer.mp3', 150, 400, 'sawtooth', 0.8)
 
 print("Sounds generated in assets/sounds/")

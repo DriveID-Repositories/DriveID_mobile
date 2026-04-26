@@ -70,7 +70,7 @@ class VerificationResultCard extends StatelessWidget {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [statusColor.withAlpha(240), const Color(0xFF14243A)],
@@ -86,7 +86,7 @@ class VerificationResultCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.white.withAlpha(38),
                     borderRadius: BorderRadius.circular(16),
@@ -98,7 +98,7 @@ class VerificationResultCard extends StatelessWidget {
                             ? Icons.hourglass_empty_rounded
                             : Icons.verified_rounded,
                     color: Colors.white,
-                    size: 24,
+                    size: 20,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -110,9 +110,9 @@ class VerificationResultCard extends StatelessWidget {
                         _getStatusText(),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 17,
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
+                          letterSpacing: 0.8,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -120,7 +120,7 @@ class VerificationResultCard extends StatelessWidget {
                         _getStatusMessage(),
                         style: TextStyle(
                           color: Colors.white.withAlpha(230),
-                          fontSize: 12,
+                          fontSize: 11,
                         ),
                       ),
                     ],
@@ -128,7 +128,7 @@ class VerificationResultCard extends StatelessWidget {
                 ),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.black.withAlpha(28),
                     borderRadius: BorderRadius.circular(999),
@@ -138,9 +138,9 @@ class VerificationResultCard extends StatelessWidget {
                     hasOpenOffenses ? 'OPEN OFFENSES' : 'CLEAR RECORD',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
+                      letterSpacing: 0.7,
                     ),
                   ),
                 ),
@@ -148,7 +148,7 @@ class VerificationResultCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(22),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -156,8 +156,8 @@ class VerificationResultCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 92,
-                      height: 108,
+                      width: 80,
+                      height: 92,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [statusColor, statusColor.withAlpha(153)],
@@ -166,14 +166,14 @@ class VerificationResultCard extends StatelessWidget {
                         boxShadow: [
                           BoxShadow(
                             color: statusColor.withAlpha(102),
-                            blurRadius: 12,
-                            spreadRadius: 2,
+                            blurRadius: 10,
+                            spreadRadius: 1,
                           ),
                         ],
                       ),
                       child: Container(
-                        width: 88,
-                        height: 104,
+                        width: 76,
+                        height: 88,
                         margin: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
                           color: AppTheme.background,
@@ -190,7 +190,7 @@ class VerificationResultCard extends StatelessWidget {
                                       child: Icon(
                                         Icons.person_outline_rounded,
                                         color: statusColor,
-                                        size: 40,
+                                        size: 34,
                                       ),
                                     );
                                   },
@@ -199,7 +199,7 @@ class VerificationResultCard extends StatelessWidget {
                                   child: Icon(
                                     Icons.person_outline_rounded,
                                     color: statusColor,
-                                    size: 40,
+                                    size: 34,
                                   ),
                                 ),
                         ),
@@ -213,23 +213,23 @@ class VerificationResultCard extends StatelessWidget {
                           Text(
                             license.ownerName.toUpperCase(),
                             style: const TextStyle(
-                              fontSize: 21,
+                              fontSize: 18,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.textPrimary,
-                              letterSpacing: 0.5,
+                              letterSpacing: 0.4,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
                             'License No. ${_formatLicenseNumber(license.registerNumber)}',
                             style: const TextStyle(
                               color: AppTheme.textSecondary,
-                              fontSize: 13,
+                              fontSize: 12,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 14,
@@ -248,13 +248,13 @@ class VerificationResultCard extends StatelessWidget {
                                 Icon(
                                   Icons.verified_rounded,
                                   color: AppTheme.gold,
-                                  size: 16,
+                                  size: 14,
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 6),
                                 Text(
                                   license.licenseType,
                                   style: const TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 12,
                                     color: AppTheme.gold,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -267,9 +267,9 @@ class VerificationResultCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 18),
                 Container(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: AppTheme.background.withAlpha(128),
                     borderRadius: BorderRadius.circular(20),
@@ -310,7 +310,7 @@ class VerificationResultCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -318,7 +318,7 @@ class VerificationResultCard extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.error,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(18),
@@ -335,32 +335,32 @@ class VerificationResultCard extends StatelessWidget {
                           ),
                           child: const Icon(
                             Icons.warning_amber_rounded,
-                            size: 22,
+                            size: 20,
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 12),
                         const Text(
                           'RECORD OFFENSE',
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                            letterSpacing: 0.8,
+                            fontSize: 15,
+                            letterSpacing: 0.7,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        const Icon(Icons.arrow_forward_rounded, size: 20),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_rounded, size: 18),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Center(
                   child: Text(
                     hasOpenOffenses
                         ? 'This driver has active offense records that need officer attention'
                         : 'No active offense record is currently attached to this driver',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       color: AppTheme.textSecondary.withAlpha(204),
                       fontWeight: FontWeight.w500,
                     ),
@@ -403,7 +403,7 @@ class _InfoBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppTheme.cardDark.withAlpha(150),
         borderRadius: BorderRadius.circular(18),
@@ -412,19 +412,19 @@ class _InfoBlock extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: accent.withAlpha(36),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: accent, size: 22),
+            child: Icon(icon, color: accent, size: 18),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             label,
             style: const TextStyle(
               color: AppTheme.textSecondary,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
             ),
@@ -462,7 +462,7 @@ class _OffenseSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1522),
         borderRadius: BorderRadius.circular(18),
@@ -473,17 +473,18 @@ class _OffenseSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.gavel_rounded, color: AppTheme.gold, size: 20),
+              const Icon(Icons.gavel_rounded, color: AppTheme.gold, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Offense Record',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
+                  fontSize: 15,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -513,7 +514,7 @@ class _OffenseSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           if (latestOffense == null)
             Text(
               'No offense records found for this driver.',
@@ -579,7 +580,7 @@ class _SummaryMetric extends StatelessWidget {
             value,
             style: TextStyle(
               color: accent,
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -588,7 +589,7 @@ class _SummaryMetric extends StatelessWidget {
             label,
             style: const TextStyle(
               color: AppTheme.textSecondary,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),

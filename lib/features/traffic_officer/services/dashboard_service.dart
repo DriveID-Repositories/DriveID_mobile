@@ -7,9 +7,9 @@ class DashboardService {
   final SupabaseClient _client = SupabaseConfig.client;
   static const Duration _requestTimeout = Duration(seconds: 4);
   static const List<String> _licenseIdentifierColumns = [
-    'license_number',
-    'register_number',
     'registration_number',
+    'register_number',
+    'license_number',
   ];
 
   Future<Map<String, String>> _getDriverNamesById(
@@ -45,9 +45,10 @@ class DashboardService {
   }
 
   bool _isMissingColumnError(Object error, String expectedColumn) {
-    return error is PostgrestException &&
-        error.code == '42703' &&
-        error.message.contains(expectedColumn);
+    if (error is PostgrestException) {
+      return (error.code == '42703' || error.code == 'PGRST204' || error.message.contains('Could not find the'));
+    }
+    return false;
   }
 
   Future<Map<String, dynamic>?> _getLicenseRow(String licenseNumber) async {
@@ -83,8 +84,8 @@ class DashboardService {
       final futureVerificationsResponse = _client
           .from('verifications')
           .select()
-          .gte('verified_at', startOfDay.toIso8601String())
-          .lt('verified_at', endOfDay.toIso8601String())
+          .gte('verified_at', startOfDay.toUtc().toIso8601String())
+          .lt('verified_at', endOfDay.toUtc().toIso8601String())
           .timeout(_requestTimeout, onTimeout: () => []);
 
       final futureTotalVerificationsResponse = _client
@@ -95,8 +96,8 @@ class DashboardService {
       final futureOffensesResponse = _client
           .from('offenses')
           .select()
-          .gte('created_at', startOfDay.toIso8601String())
-          .lt('created_at', endOfDay.toIso8601String())
+          .gte('created_at', startOfDay.toUtc().toIso8601String())
+          .lt('created_at', endOfDay.toUtc().toIso8601String())
           .timeout(_requestTimeout, onTimeout: () => []);
 
       final futurePendingOffensesResponse = _client
@@ -129,18 +130,19 @@ class DashboardService {
   }
 
   Future<void> recordVerification(String licenseNumber) async {
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
     final payloads = [
       {
-        'license_number': licenseNumber,
-        'verified_at': DateTime.now().toIso8601String(),
+        'registration_number': licenseNumber,
+        'verified_at': nowUtc,
       },
       {
         'register_number': licenseNumber,
-        'verified_at': DateTime.now().toIso8601String(),
+        'verified_at': nowUtc,
       },
       {
-        'registration_number': licenseNumber,
-        'verified_at': DateTime.now().toIso8601String(),
+        'license_number': licenseNumber,
+        'verified_at': nowUtc,
       },
     ];
 
@@ -150,7 +152,7 @@ class DashboardService {
         await _client.from('verifications').insert(payload);
         return;
       } catch (error) {
-        if (error is PostgrestException && error.code == '42703') {
+        if (error is PostgrestException && (error.code == '42703' || error.code == 'PGRST204' || error.message.contains('Could not find the'))) {
           lastError = error;
           continue;
         }
@@ -169,7 +171,7 @@ class DashboardService {
       try {
         var query = _client.from('verifications').select().eq(column, licenseNumber);
         if (verifiedAfter != null) {
-          query = query.gte('verified_at', verifiedAfter.toIso8601String());
+          query = query.gte('verified_at', verifiedAfter.toUtc().toIso8601String());
         }
 
         final response = await query
@@ -192,13 +194,18 @@ class DashboardService {
     return null;
   }
 
+  bool _isValidStatus(String status) {
+    final lower = status.trim().toLowerCase();
+    return lower == 'active' || lower == 'valid';
+  }
+
   Future<bool> isValidLicense(String licenseNumber) async {
     try {
       final row = await _getLicenseRow(licenseNumber);
       if (row == null) return false;
 
-      final status = row['status']?.toString().toLowerCase() ?? '';
-      if (status != 'active') return false;
+      final status = (row['license_status'] ?? row['status'])?.toString() ?? '';
+      if (!_isValidStatus(status)) return false;
 
       final expiryDate = DateTime.tryParse(row['expiry_date']?.toString() ?? '');
       if (expiryDate == null) return false;
@@ -247,12 +254,18 @@ class DashboardService {
   Future<bool> verifyAndRecordLicense(String licenseNumber) async {
     try {
       final isValid = await isValidLicense(licenseNumber);
-      if (!isValid) {
-        return false;
+      
+      // We still want to record the verification attempt regardless of whether the license is valid or not
+      // This ensures the dashboard stats reflect all activity accurately
+      try {
+        await recordVerification(licenseNumber);
+      } catch (e) {
+        // We log it but don't fail the verification process if recording fails
+        // due to missing license rows (foreign key constraint)
+        print('Could not record verification: $e');
       }
 
-      await recordVerification(licenseNumber);
-      return true;
+      return isValid;
     } catch (e) {
       throw Exception('Failed to verify license: $e');
     }
