@@ -89,6 +89,14 @@ class LicenseQrPayload {
         ),
       );
     } catch (_) {
+      // Check for Driver App format: "REGISTER_NUMBER|TIMESTAMP"
+      if (value.contains('|')) {
+        final parts = value.split('|');
+        if (parts.isNotEmpty && _isLegacyRegisterNumber(parts[0])) {
+          return LicenseQrParseResult.legacy(parts[0]);
+        }
+      }
+      
       if (_isLegacyRegisterNumber(value)) {
         return LicenseQrParseResult.legacy(value);
       }
