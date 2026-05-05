@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+
 import 'core/config/supabase_config.dart';
 import 'core/models/app_user.dart';
 import 'core/utils/browser_location_stub.dart'
     if (dart.library.html) 'core/utils/browser_location.dart' as browser_location;
 import 'core/theme/app_theme.dart';
+
 import 'features/driver/driver_dashboard.dart';
 import 'features/traffic_officer/screens/dashboard_screen.dart';
 import 'features/traffic_officer/screens/login_screen.dart';
@@ -47,88 +49,44 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _initDeepLink() {
-    _linkSubscription = _appLinks.uriLinkStream.listen((uri) async {
-      await _handleDeepLink(uri);
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleDeepLink(uri);
     });
 
-    // Handle initial URL on web for OAuth redirect
     if (kIsWeb) {
       final uri = Uri.parse(browser_location.getBrowserLocationHref());
-      if (uri.queryParameters.containsKey('code') && uri.queryParameters.containsKey('state')) {
+      if (uri.queryParameters.containsKey('code') ||
+          uri.queryParameters.containsKey('uin')) {
         _handleDeepLink(uri);
       }
     }
   }
 
   Future<void> _handleDeepLink(Uri uri) async {
-    final isMobileCallback = uri.scheme == 'myapp' && uri.host == 'callback';
-    final isWebCallback = uri.scheme == 'http' && uri.host == 'localhost' && uri.path == '/callback' &&
-                         (uri.queryParameters.containsKey('code') || uri.queryParameters.containsKey('uin'));
-    
-    if (isMobileCallback || isWebCallback) {
-      final code = uri.queryParameters['code'];
-      final state = uri.queryParameters['state'];
-      final uin = uri.queryParameters['uin'] ?? uri.queryParameters['identity'] ?? uri.queryParameters['identity_id'];
-      
+    final code = uri.queryParameters['code'];
+    final state = uri.queryParameters['state'];
+    final uin = uri.queryParameters['uin'];
+
+    try {
+      AppUser? user;
+
       if (code != null && state != null) {
-        try {
-          // Validate callback parameters locally before sending the authorization code to backend.
-          final isValid = await AuthService.validateCallbackParams(state, code);
-          if (!isValid) {
-            _showError('Invalid authentication parameters');
-            return;
-          }
-
-          final user = await AuthService.processEsignetCallback(
-            code: code,
-            state: state,
-            redirectUri: AuthService.redirectUri,
-          );
-
-          if (user == null) {
-            _showError('Failed to verify eSignet user');
-            return;
-          }
-
-          if (!user.canAccessMobile) {
-            await AuthService.logout();
-            _showError('This account is not allowed on mobile.');
-            return;
-          }
-
-          if (mounted) {
-            Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
-          }
-        } catch (e) {
-          _showError('Error during authentication: $e');
-        }
-      } else if (uin != null && uin.isNotEmpty) {
-        try {
-          final user = await AuthService.verifyUin(uin);
-          if (user == null) {
-            _showError('User not registered');
-            return;
-          }
-          if (!user.canAccessMobile) {
-            await AuthService.logout();
-            _showError('This account is not allowed on mobile.');
-            return;
-          }
-          if (mounted) {
-            Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
-          }
-        } catch (e) {
-          _showError('Error during authentication: $e');
-        }
-      } else {
-        _showError('Authorization code, state or UIN not found');
+        user = await AuthService.processEsignetCallback(
+          code: code,
+          state: state,
+          redirectUri: AuthService.redirectUri,
+        );
+      } else if (uin != null) {
+        user = await AuthService.verifyUin(uin);
       }
-    }
-  }
 
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      if (user == null) return;
+
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
+      }
+    } catch (e) {
+      debugPrint("Auth error: $e");
     }
   }
 
@@ -141,10 +99,9 @@ class _MyAppState extends State<MyApp> {
       initialRoute: '/',
       routes: {
         '/': (context) => const AuthWrapper(),
-        '/callback': (context) => const AuthWrapper(),
         '/login': (context) => const LoginScreen(),
         '/traffic-dashboard': (context) => const DashboardScreen(),
-        '/driver-dashboard': (context) => DriverDashboard(),
+        '/driver-dashboard': (context) => const DriverDashboard(),
       },
     );
   }
@@ -159,55 +116,39 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   AppUser? _user;
-  bool _isChecking = true;
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
+    _load();
   }
 
-  Future<void> _checkLoginStatus() async {
-    try {
-      final user = await AuthService.currentUser;
-      if (user != null && !user.canAccessMobile) {
-        await AuthService.logout();
-        if (!mounted) return;
-        setState(() {
-          _user = null;
-          _isChecking = false;
-        });
-        return;
-      }
+  Future<void> _load() async {
+    final user = await AuthService.currentUser;
 
-      if (!mounted) return;
-      setState(() {
-        _user = user;
-        _isChecking = false;
-      });
-    } catch (_) {
-      try {
-        await AuthService.logout();
-      } catch (_) {}
-      if (!mounted) return;
-      setState(() {
-        _user = null;
-        _isChecking = false;
-      });
-    }
+    setState(() {
+      _user = user;
+      _loading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isChecking) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
+
     if (_user?.isDriver == true) {
       return const DriverDashboard();
     }
+
     if (_user?.isTrafficOfficer == true) {
       return const DashboardScreen();
     }
+
     return const LoginScreen();
   }
 }

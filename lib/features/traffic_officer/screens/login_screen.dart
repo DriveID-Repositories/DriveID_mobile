@@ -1,6 +1,6 @@
-// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../../core/models/app_user.dart';
 import '../../../core/theme/app_theme.dart';
 import '../services/auth_service.dart';
@@ -16,8 +16,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
-  bool _isPasswordLogin = true; // Default to password login for mobile
-  
+  bool _isPasswordLogin = true;
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -28,12 +28,12 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _signInWithPassword() async {
+  Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      _showSnackBar('Enter both email and password', AppTheme.warning);
+      _show('Enter email and password', AppTheme.warning);
       return;
     }
 
@@ -48,83 +48,47 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (user == null) {
-        _showSnackBar('Login failed. Please try again.', AppTheme.error);
+        _show('Login failed', AppTheme.error);
         return;
       }
 
-      if (!user.canAccessMobile) {
-        await AuthService.logout();
-        if (!mounted) return;
-        _showSnackBar(
-          'This account does not have access to the mobile app.',
-          AppTheme.warning,
-        );
-        return;
-      }
-
-      _navigateForRole(user);
+      _go(user);
     } catch (e) {
-      if (!mounted) return;
-      _showSnackBar(
-        e.toString().replaceFirst('Exception: ', ''),
-        AppTheme.error,
-      );
+      _show(e.toString(), AppTheme.error);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _navigateForRole(AppUser user) {
-    final Widget destination;
-    if (user.isDriver) {
-      destination = DriverDashboard(onLocaleChanged: (Locale locale) {  },);
-    } else if (user.isTrafficOfficer) {
-      destination = const DashboardScreen();
-    } else {
-      _showSnackBar('Unsupported role: ${user.role}', AppTheme.warning);
-      return;
-    }
+  void _go(AppUser user) {
+    final screen = user.isDriver
+        ? DriverDashboard(onLocaleChanged: (Locale locale) {})
+        : const DashboardScreen();
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => destination),
+      MaterialPageRoute(builder: (_) => screen),
     );
   }
 
-  Future<void> _signInWithESignet() async {
+  Future<void> _esignet() async {
     setState(() => _isLoading = true);
 
     try {
-      final authParams = await AuthService.getAuthorizationUrlWithParams();
-      final url = authParams['url']!;
-      debugPrint('eSignet auth URL: $url');
-      final uri = Uri.parse(url);
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      final auth = await AuthService.getAuthorizationUrlWithParams();
+      final url = Uri.parse(auth['url']!);
 
-      if (!launched) {
-        throw Exception('Could not launch eSignet');
-      }
+      await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (e) {
-      if (!mounted) return;
-      _showSnackBar(
-        'Error launching eSignet: ${e.toString().replaceFirst('Exception: ', '')}',
-        AppTheme.error,
-      );
+      _show('eSignet error', AppTheme.error);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showSnackBar(String message, Color color) {
+  void _show(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
+      SnackBar(content: Text(msg), backgroundColor: color),
     );
   }
 
@@ -197,9 +161,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   _buildPasswordLoginForm()
                 else
                   _buildESignetLoginButton(),
-
                 const SizedBox(height: 24),
-                
+
                 // Help Text
                 Text(
                   'Contact your licensing office to get an account',
@@ -239,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: AppTheme.gold.withAlpha(77),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
-                  ),
+                  )
                 ]
               : [],
         ),
@@ -296,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
-            onPressed: _isLoading ? null : _signInWithPassword,
+            onPressed: _isLoading ? null : _login,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.gold,
               foregroundColor: Colors.black,
@@ -320,7 +283,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(width: 12),
                       Text(
                         'Login',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
                       ),
                     ],
                   ),
@@ -335,9 +302,7 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isLoading
-            ? null
-            : _signInWithESignet,
+        onPressed: _isLoading ? null : _esignet,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.gold,
           foregroundColor: Colors.black,
@@ -361,7 +326,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(width: 12),
                   Text(
                     'Sign in with eSignet',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
                   ),
                 ],
               ),

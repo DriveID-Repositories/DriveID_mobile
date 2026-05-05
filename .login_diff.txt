@@ -1,0 +1,426 @@
+﻿diff --git a/lib/features/traffic_officer/screens/login_screen.dart b/lib/features/traffic_officer/screens/login_screen.dart
+index 8cd19ad..c88116e 100644
+--- a/lib/features/traffic_officer/screens/login_screen.dart
++++ b/lib/features/traffic_officer/screens/login_screen.dart
+@@ -1,6 +1,6 @@
+-// lib/screens/login_screen.dart
+ import 'package:flutter/material.dart';
+ import 'package:url_launcher/url_launcher.dart';
++
+ import '../../../core/models/app_user.dart';
+ import '../../../core/theme/app_theme.dart';
+ import '../services/auth_service.dart';
+@@ -16,8 +16,8 @@ class LoginScreen extends StatefulWidget {
+ 
+ class _LoginScreenState extends State<LoginScreen> {
+   bool _isLoading = false;
+-  bool _isPasswordLogin = true; // Default to password login for mobile
+-  
++  bool _isPasswordLogin = true;
++
+   final TextEditingController _emailController = TextEditingController();
+   final TextEditingController _passwordController = TextEditingController();
+ 
+@@ -28,12 +28,12 @@ class _LoginScreenState extends State<LoginScreen> {
+     super.dispose();
+   }
+ 
+-  Future<void> _signInWithPassword() async {
++  Future<void> _login() async {
+     final email = _emailController.text.trim();
+     final password = _passwordController.text;
+ 
+     if (email.isEmpty || password.isEmpty) {
+-      _showSnackBar('Enter both email and password', AppTheme.warning);
++      _show('Enter email and password', AppTheme.warning);
+       return;
+     }
+ 
+@@ -48,83 +48,47 @@ class _LoginScreenState extends State<LoginScreen> {
+       if (!mounted) return;
+ 
+       if (user == null) {
+-        _showSnackBar('Login failed. Please try again.', AppTheme.error);
+-        return;
+-      }
+-
+-      if (!user.canAccessMobile) {
+-        await AuthService.logout();
+-        if (!mounted) return;
+-        _showSnackBar(
+-          'This account does not have access to the mobile app.',
+-          AppTheme.warning,
+-        );
++        _show('Login failed', AppTheme.error);
+         return;
+       }
+ 
+-      _navigateForRole(user);
++      _go(user);
+     } catch (e) {
+-      if (!mounted) return;
+-      _showSnackBar(
+-        e.toString().replaceFirst('Exception: ', ''),
+-        AppTheme.error,
+-      );
++      _show(e.toString(), AppTheme.error);
+     } finally {
+-      if (mounted) {
+-        setState(() => _isLoading = false);
+-      }
++      if (mounted) setState(() => _isLoading = false);
+     }
+   }
+ 
+-  void _navigateForRole(AppUser user) {
+-    final Widget destination;
+-    if (user.isDriver) {
+-      destination = DriverDashboard(onLocaleChanged: (Locale locale) {  },);
+-    } else if (user.isTrafficOfficer) {
+-      destination = const DashboardScreen();
+-    } else {
+-      _showSnackBar('Unsupported role: ${user.role}', AppTheme.warning);
+-      return;
+-    }
++  void _go(AppUser user) {
++    final screen = user.isDriver
++        ? DriverDashboard(onLocaleChanged: (Locale locale) {})
++        : const DashboardScreen();
+ 
+     Navigator.pushReplacement(
+       context,
+-      MaterialPageRoute(builder: (_) => destination),
++      MaterialPageRoute(builder: (_) => screen),
+     );
+   }
+ 
+-  Future<void> _signInWithESignet() async {
++  Future<void> _esignet() async {
+     setState(() => _isLoading = true);
+ 
+     try {
+-      final authParams = await AuthService.getAuthorizationUrlWithParams();
+-      final url = authParams['url']!;
+-      debugPrint('eSignet auth URL: $url');
+-      final uri = Uri.parse(url);
+-      final launched = await launchUrl(
+-        uri,
+-        mode: LaunchMode.externalApplication,
+-      );
++      final auth = await AuthService.getAuthorizationUrlWithParams();
++      final url = Uri.parse(auth['url']!);
+ 
+-      if (!launched) {
+-        throw Exception('Could not launch eSignet');
+-      }
++      await launchUrl(url, mode: LaunchMode.externalApplication);
+     } catch (e) {
+-      if (!mounted) return;
+-      _showSnackBar(
+-        'Error launching eSignet: ${e.toString().replaceFirst('Exception: ', '')}',
+-        AppTheme.error,
+-      );
++      _show('eSignet error', AppTheme.error);
+     } finally {
+-      if (mounted) {
+-        setState(() => _isLoading = false);
+-      }
++      if (mounted) setState(() => _isLoading = false);
+     }
+   }
+ 
+-  void _showSnackBar(String message, Color color) {
++  void _show(String msg, Color color) {
+     ScaffoldMessenger.of(context).showSnackBar(
+-      SnackBar(content: Text(message), backgroundColor: color),
++      SnackBar(content: Text(msg), backgroundColor: color),
+     );
+   }
+ 
+@@ -135,237 +99,77 @@ class _LoginScreenState extends State<LoginScreen> {
+       body: SafeArea(
+         child: Center(
+           child: SingleChildScrollView(
+-            padding: const EdgeInsets.all(24.0),
++            padding: const EdgeInsets.all(24),
+             child: Column(
+-              mainAxisAlignment: MainAxisAlignment.center,
+               children: [
+-                // Logo Section
+-                Container(
+-                  padding: const EdgeInsets.all(20),
+-                  decoration: BoxDecoration(
+-                    color: AppTheme.gold.withAlpha(38),
+-                    shape: BoxShape.circle,
+-                  ),
+-                  child: Icon(
+-                    Icons.shield_outlined,
+-                    size: 60,
+-                    color: AppTheme.gold,
+-                  ),
+-                ),
+-                const SizedBox(height: 24),
+-                Text(
+-                  'DriveID',
+-                  style: TextStyle(
+-                    fontSize: 32,
+-                    fontWeight: FontWeight.bold,
+-                    color: AppTheme.textPrimary,
+-                  ),
+-                ),
+-                const SizedBox(height: 8),
+-                Text(
+-                  'Traffic Enforcement System',
+-                  style: TextStyle(color: AppTheme.textSecondary),
++                const Icon(Icons.shield, size: 80),
++
++                const SizedBox(height: 20),
++
++                const Text(
++                  "DriveID",
++                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                 ),
+-                const SizedBox(height: 48),
+ 
+-                // Toggle Buttons
++                const SizedBox(height: 40),
++
+                 Row(
+                   children: [
+                     Expanded(
+-                      child: _buildToggleButton(
+-                        text: 'Password',
+-                        icon: Icons.lock_outline,
+-                        isActive: _isPasswordLogin,
++                      child: GestureDetector(
+                         onTap: () => setState(() => _isPasswordLogin = true),
++                        child: Container(
++                          padding: const EdgeInsets.all(12),
++                          color: _isPasswordLogin
++                              ? Colors.amber
++                              : Colors.grey,
++                          child: const Center(child: Text("Password")),
++                        ),
+                       ),
+                     ),
+-                    const SizedBox(width: 12),
++                    const SizedBox(width: 10),
+                     Expanded(
+-                      child: _buildToggleButton(
+-                        text: 'eSignet',
+-                        icon: Icons.security_outlined,
+-                        isActive: !_isPasswordLogin,
++                      child: GestureDetector(
+                         onTap: () => setState(() => _isPasswordLogin = false),
++                        child: Container(
++                          padding: const EdgeInsets.all(12),
++                          color: !_isPasswordLogin
++                              ? Colors.amber
++                              : Colors.grey,
++                          child: const Center(child: Text("eSignet")),
++                        ),
+                       ),
+                     ),
+                   ],
+                 ),
+-                const SizedBox(height: 24),
+ 
+-                // Login Form
+-                if (_isPasswordLogin)
+-                  _buildPasswordLoginForm()
+-                else
+-                  _buildESignetLoginButton(),
++                const SizedBox(height: 20),
+ 
+-                const SizedBox(height: 24),
+-                
+-                // Help Text
+-                Text(
+-                  'Contact your licensing office to get an account',
+-                  style: TextStyle(
+-                    fontSize: 12,
+-                    color: AppTheme.textSecondary,
++                if (_isPasswordLogin) ...[
++                  TextField(controller: _emailController),
++                  const SizedBox(height: 10),
++                  TextField(
++                    controller: _passwordController,
++                    obscureText: true,
+                   ),
+-                ),
+-              ],
+-            ),
+-          ),
+-        ),
+-      ),
+-    );
+-  }
+-
+-  Widget _buildToggleButton({
+-    required String text,
+-    required IconData icon,
+-    required bool isActive,
+-    required VoidCallback onTap,
+-  }) {
+-    return GestureDetector(
+-      onTap: onTap,
+-      child: AnimatedContainer(
+-        duration: const Duration(milliseconds: 200),
+-        padding: const EdgeInsets.symmetric(vertical: 14),
+-        decoration: BoxDecoration(
+-          color: isActive ? AppTheme.gold : AppTheme.cardDark,
+-          borderRadius: BorderRadius.circular(12),
+-          border: Border.all(
+-            color: isActive ? AppTheme.gold : AppTheme.cardBorder,
+-          ),
+-          boxShadow: isActive
+-              ? [
+-                  BoxShadow(
+-                    color: AppTheme.gold.withAlpha(77),
+-                    blurRadius: 8,
+-                    offset: const Offset(0, 2),
++                  const SizedBox(height: 20),
++                  ElevatedButton(
++                    onPressed: _isLoading ? null : _login,
++                    child: _isLoading
++                        ? const CircularProgressIndicator()
++                        : const Text("Login"),
+                   ),
+-                ]
+-              : [],
+-        ),
+-        child: Row(
+-          mainAxisAlignment: MainAxisAlignment.center,
+-          children: [
+-            Icon(
+-              icon,
+-              size: 20,
+-              color: isActive ? Colors.black : AppTheme.textSecondary,
+-            ),
+-            const SizedBox(width: 8),
+-            Text(
+-              text,
+-              style: TextStyle(
+-                color: isActive ? Colors.black : AppTheme.textSecondary,
+-                fontWeight: FontWeight.w600,
+-              ),
+-            ),
+-          ],
+-        ),
+-      ),
+-    );
+-  }
+-
+-  Widget _buildPasswordLoginForm() {
+-    return Column(
+-      children: [
+-        TextField(
+-          controller: _emailController,
+-          style: const TextStyle(color: AppTheme.textPrimary),
+-          decoration: const InputDecoration(
+-            labelText: 'Email',
+-            hintText: 'Enter your email',
+-            prefixIcon: Icon(Icons.email_outlined),
+-            labelStyle: TextStyle(color: AppTheme.textSecondary),
+-          ),
+-          keyboardType: TextInputType.emailAddress,
+-        ),
+-        const SizedBox(height: 16),
+-        TextField(
+-          controller: _passwordController,
+-          obscureText: true,
+-          style: const TextStyle(color: AppTheme.textPrimary),
+-          decoration: const InputDecoration(
+-            labelText: 'Password',
+-            hintText: 'Enter your password',
+-            prefixIcon: Icon(Icons.lock_outline),
+-            labelStyle: TextStyle(color: AppTheme.textSecondary),
+-          ),
+-        ),
+-        const SizedBox(height: 24),
+-        SizedBox(
+-          width: double.infinity,
+-          height: 56,
+-          child: ElevatedButton(
+-            onPressed: _isLoading ? null : _signInWithPassword,
+-            style: ElevatedButton.styleFrom(
+-              backgroundColor: AppTheme.gold,
+-              foregroundColor: Colors.black,
+-              shape: RoundedRectangleBorder(
+-                borderRadius: BorderRadius.circular(14),
+-              ),
+-            ),
+-            child: _isLoading
+-                ? const SizedBox(
+-                    width: 24,
+-                    height: 24,
+-                    child: CircularProgressIndicator(
+-                      strokeWidth: 2,
+-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+-                    ),
+-                  )
+-                : const Row(
+-                    mainAxisAlignment: MainAxisAlignment.center,
+-                    children: [
+-                      Icon(Icons.login, size: 20, color: Colors.black),
+-                      SizedBox(width: 12),
+-                      Text(
+-                        'Login',
+-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+-                      ),
+-                    ],
++                ] else ...[
++                  ElevatedButton(
++                    onPressed: _isLoading ? null : _esignet,
++                    child: const Text("Sign in with eSignet"),
+                   ),
++                ],
++              ],
++            ),
+           ),
+         ),
+-      ],
+-    );
+-  }
+-
+-  Widget _buildESignetLoginButton() {
+-    return SizedBox(
+-      width: double.infinity,
+-      height: 56,
+-      child: ElevatedButton(
+-        onPressed: _isLoading
+-            ? null
+-            : _signInWithESignet,
+-        style: ElevatedButton.styleFrom(
+-          backgroundColor: AppTheme.gold,
+-          foregroundColor: Colors.black,
+-          shape: RoundedRectangleBorder(
+-            borderRadius: BorderRadius.circular(14),
+-          ),
+-        ),
+-        child: _isLoading
+-            ? const SizedBox(
+-                width: 24,
+-                height: 24,
+-                child: CircularProgressIndicator(
+-                  strokeWidth: 2,
+-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+-                ),
+-              )
+-            : const Row(
+-                mainAxisAlignment: MainAxisAlignment.center,
+-                children: [
+-                  Icon(Icons.security, size: 20, color: Colors.black),
+-                  SizedBox(width: 12),
+-                  Text(
+-                    'Sign in with eSignet',
+-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+-                  ),
+-                ],
+-              ),
+       ),
+     );
+   }
+-}
++}
+\ No newline at end of file
