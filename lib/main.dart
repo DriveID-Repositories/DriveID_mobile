@@ -55,35 +55,32 @@ class _MyAppState extends State<MyApp> {
 
     if (kIsWeb) {
       final uri = Uri.parse(browser_location.getBrowserLocationHref());
-      if (uri.queryParameters.containsKey('code') ||
-          uri.queryParameters.containsKey('uin')) {
+      if (uri.queryParameters.containsKey('token')) {
         _handleDeepLink(uri);
       }
     }
   }
 
   Future<void> _handleDeepLink(Uri uri) async {
-    final code = uri.queryParameters['code'];
-    final state = uri.queryParameters['state'];
-    final uin = uri.queryParameters['uin'];
+    final token = uri.queryParameters['token'];
 
     try {
-      AppUser? user;
-
-      if (code != null && state != null) {
-        user = await AuthService.processEsignetCallback(
-          code: code,
-          state: state,
-          redirectUri: AuthService.redirectUri,
-        );
-      } else if (uin != null) {
-        user = await AuthService.verifyUin(uin);
-      }
+      if (token == null || token.isEmpty) return;
+      final user = await AuthService.processBackendSessionToken(token);
 
       if (user == null) return;
 
       if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
+        String route;
+        if (user.isDriver) {
+          route = '/driver-dashboard';
+        } else if (user.isTrafficOfficer) {
+          route = '/traffic-dashboard';
+        } else {
+          // Fallback to auth wrapper for other roles
+          route = '/';
+        }
+        Navigator.of(context).pushNamedAndRemoveUntil(route, (_) => false);
       }
     } catch (e) {
       debugPrint("Auth error: $e");

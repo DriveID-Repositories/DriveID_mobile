@@ -1,7 +1,7 @@
 // lib/features/driver/screens/settings_tab.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
 import 'profile_screen.dart';
 import 'change_password_screen.dart';
 

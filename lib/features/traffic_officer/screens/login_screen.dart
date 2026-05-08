@@ -75,9 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final auth = await AuthService.getAuthorizationUrlWithParams();
-      final url = Uri.parse(auth['url']!);
-
+      final url = AuthService.getLoginUri();
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (e) {
       _show('eSignet error', AppTheme.error);

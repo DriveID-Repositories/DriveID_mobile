@@ -2,9 +2,9 @@
 import 'package:driveid_app/features/driver/services/activity_service.dart';
 import 'package:driveid_app/features/driver/services/user_session.dart';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../features/traffic_officer/services/auth_service.dart';
-import '../../../features/traffic_officer/screens/login_screen.dart';
+import '../../core/theme/app_theme.dart';
+import '../traffic_officer/services/auth_service.dart';
+import '../traffic_officer/screens/login_screen.dart';
 import 'my_license_tab.dart';
 import 'history_screen.dart';
 import 'settings_tab.dart';
@@ -55,15 +55,15 @@ class _DriverDashboardState extends State<DriverDashboard> {
       ),
     );
     if (confirm != true) return;
-final userId = UserSession().userId;
-if (userId != null) {
-  await ActivityService().logActivity(
-    userId: userId,
-    action: 'logout',
-    details: 'User logged out',
-  );
-}
-UserSession().clear();
+    final userId = UserSession().userId;
+    if (userId != null) {
+      await ActivityService().logActivity(
+        userId: userId,
+        action: 'logout',
+        details: 'User logged out',
+      );
+    }
+    UserSession().clear();
     await AuthService.logout();
     if (context.mounted) {
       Navigator.pushReplacement(
