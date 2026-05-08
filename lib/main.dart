@@ -34,6 +34,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final AppLinks _appLinks = AppLinks();
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   late StreamSubscription<Uri> _linkSubscription;
 
   @override
@@ -48,7 +49,12 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  void _initDeepLink() {
+  void _initDeepLink() async {
+    final initialUri = await _appLinks.getInitialLink();
+    if (initialUri != null) {
+      _handleDeepLink(initialUri);
+    }
+
     _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
       _handleDeepLink(uri);
     });
@@ -80,7 +86,7 @@ class _MyAppState extends State<MyApp> {
           // Fallback to auth wrapper for other roles
           route = '/';
         }
-        Navigator.of(context).pushNamedAndRemoveUntil(route, (_) => false);
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(route, (_) => false);
       }
     } catch (e) {
       debugPrint("Auth error: $e");
@@ -90,6 +96,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'DriveID',
       theme: AppTheme.darkTheme,

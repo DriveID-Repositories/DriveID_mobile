@@ -23,7 +23,7 @@ class AppUser {
   
   String get displayName {
     if (isDriver && userData != null) {
-      return userData!['full_name'] ?? userData!['user_name'] ?? email;
+      return email;
     }
     if ((isTrafficOfficer || isLicensingOfficer) && userData != null) {
       final fullName = userData!['full_name']?.toString().trim();
