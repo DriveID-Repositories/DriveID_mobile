@@ -1,20 +1,18 @@
-// lib/features/driver/screens/driver_dashboard.dart
-import 'package:driveid_app/features/driver/services/activity_service.dart';
-import 'package:driveid_app/features/driver/services/user_session.dart';
+// lib/features/driver/driver_dashboard.dart
 import 'package:flutter/material.dart';
+<<<<<<< Updated upstream
 import '../../core/theme/app_theme.dart';
 import '../traffic_officer/services/auth_service.dart';
 import '../traffic_officer/screens/login_screen.dart';
+=======
+import '../../../core/theme/app_theme.dart';
+>>>>>>> Stashed changes
 import 'my_license_tab.dart';
 import 'history_screen.dart';
 import 'settings_tab.dart';
 
 class DriverDashboard extends StatefulWidget {
-  final String? driverId;
-  final String? registerNumber;
-  final ValueChanged<Locale>? onLocaleChanged;
-
-  const DriverDashboard({super.key, this.driverId, this.registerNumber, this.onLocaleChanged});
+  const DriverDashboard();
 
   @override
   State<DriverDashboard> createState() => _DriverDashboardState();
@@ -28,13 +26,14 @@ class _DriverDashboardState extends State<DriverDashboard> {
   @override
   void initState() {
     super.initState();
-    _pages = [
-      MyLicenseTab(driverId: widget.driverId, registerNumber: widget.registerNumber),
-      const HistoryScreen(),
-      SettingsTab(onLocaleChanged: widget.onLocaleChanged),
+    _pages = const [
+      MyLicenseTab(),
+      HistoryScreen(),
+      SettingsTab(),
     ];
   }
 
+<<<<<<< Updated upstream
   Future<void> _logout(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -73,27 +72,24 @@ class _DriverDashboardState extends State<DriverDashboard> {
     }
   }
 
+=======
+>>>>>>> Stashed changes
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(
-          _selectedIndex == 0 ? 'My Digital License' : (_selectedIndex == 1 ? 'History' : 'Settings'),
-            
+          _selectedIndex == 0
+              ? 'My Digital License'
+              : (_selectedIndex == 1 ? 'History' : 'Settings'),
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         centerTitle: false,
         backgroundColor: AppTheme.cardDark,
         elevation: 0,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
-            onPressed: () => _logout(context),
-            tooltip: 'Logout',
-          ),
-        ],
+        // No actions – logout is inside Settings
       ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(

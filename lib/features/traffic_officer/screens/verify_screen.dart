@@ -51,7 +51,6 @@ class _VerifyScreenState extends State<VerifyScreen>
   final TextEditingController _manualController = TextEditingController();
 
   // Used for UI hints only now
-  String get _licensePrefix => 'DLV${DateTime.now().year}';
 
   @override
   void initState() {

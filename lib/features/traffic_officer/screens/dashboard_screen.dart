@@ -22,7 +22,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final DashboardService _dashboardService = DashboardService();
   DashboardStats? _stats;
   bool _isLoading = true;
-  DateTime _lastRefresh = DateTime.now();
 
   @override
   void initState() {
@@ -43,7 +42,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             pendingOffenses: LocalDatabaseService.getPendingOffenses().length,
           );
           _isLoading = false;
-          _lastRefresh = DateTime.now();
         });
         return;
       }
@@ -56,7 +54,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() {
         _stats = stats;
         _isLoading = false;
-        _lastRefresh = DateTime.now();
       });
     } catch (e) {
       setState(() {
@@ -385,12 +382,4 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  String _formatTime(DateTime time) {
-    final now = DateTime.now();
-    final diff = now.difference(time);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
 }

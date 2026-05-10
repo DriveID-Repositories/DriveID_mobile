@@ -1,12 +1,20 @@
-// lib/features/driver/screens/settings_tab.dart
+// lib/features/driver/settings_tab.dart
+import 'package:driveid_app/features/driver/services/activity_service.dart';
+import 'package:driveid_app/features/driver/services/user_session.dart';
+import 'package:driveid_app/features/traffic_officer/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+<<<<<<< Updated upstream
 import '../../core/theme/app_theme.dart';
+=======
+import '../../../core/theme/app_theme.dart';
+import '../../../features/traffic_officer/screens/login_screen.dart';
+>>>>>>> Stashed changes
 import 'profile_screen.dart';
 import 'change_password_screen.dart';
 
 class SettingsTab extends StatefulWidget {
-  const SettingsTab({super.key, ValueChanged<Locale>? onLocaleChanged});
+  const SettingsTab({super.key});
 
   @override
   State<SettingsTab> createState() => _SettingsTabState();
@@ -34,6 +42,72 @@ class _SettingsTabState extends State<SettingsTab> {
     setState(() => _notificationsEnabled = value);
   }
 
+  void _navigateTo(String route) {
+    if (route == '/profile') {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    } else if (route == '/change-password') {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const ChangePasswordScreen()));
+    } else {
+      _showInfoDialog('Info', 'Screen "$route" is under construction.');
+    }
+  }
+
+  void _showInfoDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: Text(message, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK', style: TextStyle(color: AppTheme.gold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
+        title: const Text('Log Out', style: TextStyle(color: Colors.white)),
+        content: const Text('Are you sure you want to log out?', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final userId = UserSession().userId;
+              if (userId != null) {
+                await ActivityService().logActivity(
+                  userId: userId,
+                  action: 'logout',
+                  details: 'User logged out',
+                );
+              }
+              UserSession().clear();
+              await AuthService.logout();
+              if (context.mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              }
+            },
+            child: const Text('Log Out', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -43,12 +117,12 @@ class _SettingsTabState extends State<SettingsTab> {
         _buildMenuItem(
           icon: Icons.person_outline,
           title: 'View Profile',
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+          onTap: () => _navigateTo('/profile'),
         ),
         _buildMenuItem(
           icon: Icons.lock_outline,
           title: 'Change Password',
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChangePasswordScreen())),
+          onTap: () => _navigateTo('/change-password'),
         ),
         const Divider(color: Colors.white24, height: 32),
 
@@ -60,19 +134,13 @@ class _SettingsTabState extends State<SettingsTab> {
           onChanged: _saveNotifications,
           activeColor: AppTheme.gold,
         ),
-        _buildMenuItem(
-          icon: Icons.language,
-          title: 'Language',
-          trailing: const Text('English', style: TextStyle(color: AppTheme.textSecondary)),
-          onTap: () => _showLanguageDialog(),
-        ),
         const Divider(color: Colors.white24, height: 32),
 
         _buildSectionHeader('About'),
         _buildMenuItem(
           icon: Icons.info_outline,
           title: 'App Version',
-          trailing: const Text('1.0.0', style: TextStyle(color: AppTheme.textSecondary)),
+          trailing: const Text('1.0.0', style: TextStyle(color: Colors.white70)),
           onTap: () {},
         ),
         _buildMenuItem(
@@ -85,6 +153,16 @@ class _SettingsTabState extends State<SettingsTab> {
           title: 'Terms of Service',
           onTap: () => _showInfoDialog('Terms of Service', 'Use of this app is subject to government regulations.'),
         ),
+        const Divider(color: Colors.white24, height: 32),
+
+        // Danger zone – Logout
+        _buildSectionHeader('Danger Zone', color: Colors.redAccent),
+        _buildMenuItem(
+          icon: Icons.logout,
+          title: 'Log Out',
+          color: Colors.redAccent,
+          onTap: _confirmLogout,
+        ),
         const SizedBox(height: 40),
       ],
     );
@@ -95,7 +173,12 @@ class _SettingsTabState extends State<SettingsTab> {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Text(
         title,
-        style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+        style: TextStyle(
+          color: color,
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.8,
+        ),
       ),
     );
   }
@@ -113,46 +196,6 @@ class _SettingsTabState extends State<SettingsTab> {
       trailing: trailing ?? const Icon(Icons.chevron_right, color: Colors.white54),
       onTap: onTap,
       contentPadding: EdgeInsets.zero,
-    );
-  }
-
-  void _showLanguageDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        title: const Text('Select Language', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('English', style: TextStyle(color: Colors.white)),
-              onTap: () => Navigator.pop(ctx),
-            ),
-            ListTile(
-              title: const Text('Chichewa', style: TextStyle(color: Colors.white)),
-              onTap: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showInfoDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: AppTheme.textSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK', style: TextStyle(color: AppTheme.gold)),
-          ),
-        ],
-      ),
     );
   }
 }
