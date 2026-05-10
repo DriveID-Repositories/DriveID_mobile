@@ -4,12 +4,9 @@ import 'package:driveid_app/features/driver/services/user_session.dart';
 import 'package:driveid_app/features/traffic_officer/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-<<<<<<< Updated upstream
 import '../../core/theme/app_theme.dart';
-=======
 import '../../../core/theme/app_theme.dart';
 import '../../../features/traffic_officer/screens/login_screen.dart';
->>>>>>> Stashed changes
 import 'profile_screen.dart';
 import 'change_password_screen.dart';
 

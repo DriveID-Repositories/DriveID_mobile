@@ -1,11 +1,10 @@
 // lib/features/driver/my_license_tab.dart
 import 'dart:async';
-<<<<<<< Updated upstream
 import 'dart:convert';
-=======
+
 import 'package:driveid_app/features/driver/services/activity_service.dart';
 import 'package:driveid_app/features/driver/services/user_session.dart';
->>>>>>> Stashed changes
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qr_flutter/qr_flutter.dart';
@@ -142,7 +141,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
         .select('id, full_name, driver_photo_url, national_id')
         .eq('auth_user_id', authUserId)
         .maybeSingle();
-<<<<<<< Updated upstream
 
     if (driverResponse == null) {
       driverResponse = await supabase
@@ -152,8 +150,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
           .maybeSingle();
     }
 
-=======
->>>>>>> Stashed changes
     if (driverResponse == null) throw Exception('No driver profile found');
 
     final driverId = driverResponse['id'];
@@ -192,7 +188,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
       'status': licenseResponse['license_status'],
     };
     final license = local.DriverLicense.fromJson(combined);
-<<<<<<< Updated upstream
     
     // Log activity only once
     if (!_isLogged) {
@@ -210,8 +205,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
       _generateQRData(license.registerNumber);
     }
 
-=======
->>>>>>> Stashed changes
     return DriverFullProfile(
       license: license,
       sex: sex,

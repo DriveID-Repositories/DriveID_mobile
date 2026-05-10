@@ -1,12 +1,14 @@
 // lib/features/driver/driver_dashboard.dart
+import 'package:driveid_app/features/driver/services/activity_service.dart';
+import 'package:driveid_app/features/driver/services/user_session.dart';
 import 'package:flutter/material.dart';
-<<<<<<< Updated upstream
+
 import '../../core/theme/app_theme.dart';
 import '../traffic_officer/services/auth_service.dart';
 import '../traffic_officer/screens/login_screen.dart';
-=======
+
 import '../../../core/theme/app_theme.dart';
->>>>>>> Stashed changes
+
 import 'my_license_tab.dart';
 import 'history_screen.dart';
 import 'settings_tab.dart';
@@ -33,7 +35,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
     ];
   }
 
-<<<<<<< Updated upstream
   Future<void> _logout(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -72,8 +73,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
     }
   }
 
-=======
->>>>>>> Stashed changes
   @override
   Widget build(BuildContext context) {
     return Scaffold(

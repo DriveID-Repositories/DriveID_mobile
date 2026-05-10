@@ -1,7 +1,5 @@
-<<<<<<< Updated upstream
-=======
+
 // lib/screens/login_screen.darjfjdcmpkawdot
->>>>>>> Stashed changes
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -64,23 +62,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-<<<<<<< Updated upstream
   void _go(AppUser user) {
     final screen = user.isDriver
         ? DriverDashboard(onLocaleChanged: (Locale locale) {})
         : const DashboardScreen();
-=======
   void _navigateForRole(AppUser user) {
     final Widget destination;
     if (user.isDriver) {
-      destination = DriverDashboard();
+      destination = DriverDashboard(onLocaleChanged: (Locale locale) {  },);
     } else if (user.isTrafficOfficer) {
       destination = const DashboardScreen();
     } else {
       _showSnackBar('Unsupported role: ${user.role}', AppTheme.warning);
       return;
     }
->>>>>>> Stashed changes
 
     Navigator.pushReplacement(
       context,
@@ -352,4 +347,5 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+}
 }
