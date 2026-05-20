@@ -1,3 +1,5 @@
+import 'dart:developer' show log;
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/config/supabase_config.dart';
@@ -13,8 +15,8 @@ class OffenseService {
   final DashboardService _dashboardService = DashboardService();
   static const Duration _requestTimeout = Duration(seconds: 4);
   static const List<String> _identifierColumns = [
-    'license_number',
     'registration_number',
+    'license_number',
     'register_number',
   ];
 
@@ -25,72 +27,64 @@ class OffenseService {
   }
 
   String _mapIdentifierKey(Map<String, dynamic> payload) {
+    if (payload.containsKey('registration_number')) return 'registration_number';
     if (payload.containsKey('license_number')) return 'license_number';
-    if (payload.containsKey('register_number')) return 'register_number';
-    return 'registration_number';
+    return 'register_number';
   }
 
   Future<Map<String, dynamic>> _insertPayloadWithCompatibility(
     Map<String, dynamic> payload,
   ) async {
-    final attempts = <Map<String, dynamic>>[
-      Map<String, dynamic>.from(payload),
-    ];
-
-    if (payload.containsKey('license_number')) {
-      attempts.add(
-        Map<String, dynamic>.from(payload)
-          ..remove('license_number')
-          ..['register_number'] = payload['license_number'],
-      );
-      attempts.add(
-        Map<String, dynamic>.from(payload)
-          ..remove('license_number')
-          ..['registration_number'] = payload['license_number'],
-      );
+    // Build clean payload with ONLY the columns that likely exist in offenses table
+    final registration_number = payload['license_number'] ?? payload['registration_number'] ?? payload['register_number'];
+    
+    if (registration_number == null || registration_number.toString().isEmpty) {
+      throw Exception('Registration/license number is required');
     }
 
-    for (final attempt in attempts) {
-      var current = Map<String, dynamic>.from(attempt);
+    final cleanPayload = {
+      'name': payload['name'] ?? 'Unknown',
+      'registration_number': registration_number.toString().trim(),
+      'offense_type': payload['offense_type'],
+      'location': payload['location'],
+      'status': payload['status'] ?? 'Pending',
+      'fine': payload['fine'] ?? 'TBD',
+      'created_at': payload['created_at'] ?? DateTime.now().toUtc().toIso8601String(),
+    };
 
-      while (true) {
+    // Try with offense_type_id if provided
+    if (payload.containsKey('offense_type_id') && 
+        payload['offense_type_id'] != null && 
+        (payload['offense_type_id'] as String).length > 10) {
+      cleanPayload['offense_type_id'] = payload['offense_type_id'];
+    }
+
+    try {
+      final response = await _client
+          .from('offenses')
+          .insert(cleanPayload)
+          .select()
+          .single()
+          .timeout(_requestTimeout);
+      return Map<String, dynamic>.from(response);
+    } catch (error) {
+      // If insert failed, try without optional fields
+      if (error is PostgrestException && (error.code == '42703' || error.code == 'PGRST204')) {
+        cleanPayload.remove('offense_type_id');
         try {
           final response = await _client
               .from('offenses')
-              .insert(current)
+              .insert(cleanPayload)
               .select()
               .single()
               .timeout(_requestTimeout);
           return Map<String, dynamic>.from(response);
-        } catch (error) {
-          if (error is! PostgrestException ||
-              (error.code != '42703' && error.code != 'PGRST204')) {
-            rethrow;
-          }
-
-          const removableColumns = ['fine', 'status', 'location', 'name', 'latitude', 'longitude'];
-          final missingColumn = removableColumns.cast<String?>().firstWhere(
-            (column) => column != null &&
-                error.message.toLowerCase().contains(column.toLowerCase()),
-            orElse: () => null,
-          );
-
-          if (missingColumn != null && current.containsKey(missingColumn)) {
-            current.remove(missingColumn);
-            continue;
-          }
-
-          final identifierKey = _mapIdentifierKey(current);
-          if (error.message.toLowerCase().contains(identifierKey.toLowerCase())) {
-            break;
-          }
-
-          rethrow;
+        } catch (retryError) {
+          throw Exception('Failed to insert offense: $retryError');
         }
       }
+      rethrow;
     }
-
-    throw Exception('Failed to insert offense with available schema');
   }
 
   Future<List<Offense>> _fetchOffensesByIdentifier(String identifier) async {
@@ -199,6 +193,7 @@ class OffenseService {
     }
     
     final raw = await getOffenseTypesRaw();
+    log('OffenseService.getOffenseTypes raw response: $raw');
     await LocalDatabaseService.cacheOffenseTypes(raw);
     return raw.map((json) => OffenseType.fromJson(json)).toList();
   }

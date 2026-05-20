@@ -68,10 +68,35 @@ class OffenseType {
   });
 
   factory OffenseType.fromJson(Map<String, dynamic> json) {
+    String? fineVal;
+
+    // common column names first
+    if (json.containsKey('fine') && json['fine'] != null) {
+      fineVal = json['fine'].toString();
+    } else if (json.containsKey('amount') && json['amount'] != null) {
+      fineVal = json['amount'].toString();
+    } else if (json.containsKey('penalty_amount') && json['penalty_amount'] != null) {
+      fineVal = json['penalty_amount'].toString();
+    } else if (json.containsKey('penalty') && json['penalty'] != null) {
+      fineVal = json['penalty'].toString();
+    }
+
+    // fallback: pick any column that contains 'fine' (case-insensitive)
+    if (fineVal == null) {
+      for (final key in json.keys) {
+        if (key.toLowerCase().contains('fine') && json[key] != null) {
+          fineVal = json[key].toString();
+          break;
+        }
+      }
+    }
+
+    fineVal ??= 'TBD';
+
     return OffenseType(
       id: json['id']?.toString() ?? '',
       label: json['label']?.toString() ?? 'Unknown Offense',
-      fine: json['fine']?.toString() ?? 'TBD',
+      fine: fineVal,
     );
   }
 

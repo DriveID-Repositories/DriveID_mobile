@@ -535,6 +535,8 @@ class _OffenseSummaryCard extends StatelessWidget {
                 children: [
                   Text(
                     latestOffense!.offenseType,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -542,6 +544,8 @@ class _OffenseSummaryCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     '${latestOffense!.status} • ${latestOffense!.location}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.textSecondary,
                     ),

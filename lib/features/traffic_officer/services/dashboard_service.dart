@@ -17,9 +17,7 @@ class DashboardService {
     'registration_number',
   ];
   static const List<String> _verificationIdentifierColumns = [
-    'license_number',
     'registration_number',
-    'register_number',
   ];
 
   Future<Map<String, String>> _getDriverNamesById(
@@ -134,15 +132,23 @@ class DashboardService {
       final offensesList = (responses[2] as List<dynamic>?) ?? [];
       final pendingOffensesList = (responses[3] as List<dynamic>?) ?? [];
 
-      return DashboardStats(
+      final stats = DashboardStats(
         verificationsToday: verificationsList.length,
         offensesRecorded: offensesList.length,
         totalVerifications: totalVerificationsList.length,
         pendingOffenses: pendingOffensesList.length,
       );
+      await LocalDatabaseService.cacheDashboardStats(stats.toJson());
+      return stats;
     } catch (e) {
       throw Exception('Failed to fetch dashboard stats: $e');
     }
+  }
+
+  DashboardStats? getCachedDashboardStats() {
+    final cached = LocalDatabaseService.getCachedDashboardStats();
+    if (cached == null) return null;
+    return DashboardStats.fromJson(cached);
   }
 
   Future<void> recordVerification(String licenseNumber) async {
@@ -163,38 +169,15 @@ class DashboardService {
 
   Future<void> recordVerificationDirectly(Map<String, dynamic> basePayload) async {
     final licenseNumber = basePayload['license_number'] ?? basePayload['registration_number'] ?? basePayload['register_number'];
-    if (licenseNumber == null) return;
+    if (licenseNumber == null || licenseNumber.toString().isEmpty) return;
 
-    final payloads = [
-      {
-        ...basePayload,
-        'registration_number': licenseNumber,
-      }..remove('license_number')..remove('register_number'),
-      {
-        ...basePayload,
-        'register_number': licenseNumber,
-      }..remove('license_number')..remove('registration_number'),
-      {
-        ...basePayload,
-        'license_number': licenseNumber,
-      }..remove('register_number')..remove('registration_number'),
-    ];
+    // Build clean payload with ONLY the columns that exist in verifications table
+    final payload = {
+      'registration_number': licenseNumber.toString().trim(),
+      'verified_at': basePayload['verified_at'] ?? DateTime.now().toUtc().toIso8601String(),
+    };
 
-    Object? lastError;
-    for (final payload in payloads) {
-      try {
-        await _client.from('verifications').insert(payload);
-        return;
-      } catch (error) {
-        if (error is PostgrestException && (error.code == '42703' || error.code == 'PGRST204' || error.message.contains('Could not find the'))) {
-          lastError = error;
-          continue;
-        }
-        throw Exception('Failed to record verification: $error');
-      }
-    }
-
-    throw Exception('Failed to record verification: $lastError');
+    await _client.from('verifications').insert(payload);
   }
 
   Future<Map<String, dynamic>?> getLatestVerificationForLicense({

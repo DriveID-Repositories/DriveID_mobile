@@ -1,11 +1,11 @@
 {
-    "name": "driveid_app",
-    "short_name": "driveid_app",
+    "name": "DriveID",
+    "short_name": "DriveID",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B1220",
+    "theme_color": "#D4A24C",
+    "description": "Digital driver identity and traffic enforcement.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

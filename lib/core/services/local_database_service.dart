@@ -6,6 +6,7 @@ class LocalDatabaseService {
   static const String offensesBox = 'pending_offenses';
   static const String verificationsBox = 'pending_verifications';
   static const String offenseTypesBox = 'offense_types_cache';
+  static const String dashboardStatsBox = 'dashboard_stats_cache';
 
   static Future<void> initialize() async {
     await Hive.initFlutter();
@@ -15,6 +16,7 @@ class LocalDatabaseService {
     await Hive.openBox(offensesBox);
     await Hive.openBox(verificationsBox);
     await Hive.openBox(offenseTypesBox);
+    await Hive.openBox(dashboardStatsBox);
   }
 
   // --- Licenses Cache ---
@@ -108,5 +110,18 @@ class LocalDatabaseService {
     return _offenseTypes.values
         .map((e) => jsonDecode(e.toString()) as Map<String, dynamic>)
         .toList();
+  }
+
+  // --- Dashboard Stats Cache ---
+  static Box get _dashboardStats => Hive.box(dashboardStatsBox);
+
+  static Future<void> cacheDashboardStats(Map<String, dynamic> stats) async {
+    await _dashboardStats.put('latest', jsonEncode(stats));
+  }
+
+  static Map<String, dynamic>? getCachedDashboardStats() {
+    final value = _dashboardStats.get('latest');
+    if (value == null) return null;
+    return jsonDecode(value.toString()) as Map<String, dynamic>;
   }
 }

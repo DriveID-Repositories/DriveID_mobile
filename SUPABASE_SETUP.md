@@ -111,7 +111,7 @@ INSERT INTO offense_types (label, fine) VALUES
 CREATE TABLE offenses (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
-  registration_number TEXT NOT NULL,
+  license_number TEXT NOT NULL,
   offense_type_id UUID REFERENCES offense_types(id),
   offense_type TEXT NOT NULL,
   location TEXT NOT NULL,
@@ -125,7 +125,7 @@ CREATE TABLE offenses (
 ```sql
 CREATE TABLE verifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  registration_number TEXT NOT NULL,
+  license_number TEXT NOT NULL,
   verified_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```

@@ -33,14 +33,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final isOnline = await SyncService().isOnline();
       if (!isOnline) {
+        final cachedStats = _dashboardService.getCachedDashboardStats();
         if (!mounted) return;
         setState(() {
-          _stats = DashboardStats(
-            verificationsToday: LocalDatabaseService.getPendingVerifications().length,
-            offensesRecorded: LocalDatabaseService.getPendingOffenses().length,
-            totalVerifications: 0,
-            pendingOffenses: LocalDatabaseService.getPendingOffenses().length,
-          );
+          if (cachedStats != null) {
+            _stats = DashboardStats(
+              verificationsToday: cachedStats.verificationsToday + LocalDatabaseService.getPendingVerifications().length,
+              offensesRecorded: cachedStats.offensesRecorded,
+              totalVerifications: cachedStats.totalVerifications,
+              pendingOffenses: cachedStats.pendingOffenses + LocalDatabaseService.getPendingOffenses().length,
+            );
+          } else {
+            _stats = DashboardStats(
+              verificationsToday: LocalDatabaseService.getPendingVerifications().length,
+              offensesRecorded: LocalDatabaseService.getPendingOffenses().length,
+              totalVerifications: 0,
+              pendingOffenses: LocalDatabaseService.getPendingOffenses().length,
+            );
+          }
           _isLoading = false;
         });
         return;

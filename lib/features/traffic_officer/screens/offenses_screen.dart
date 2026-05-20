@@ -355,11 +355,21 @@ class _OffensesScreenState extends State<OffensesScreen> {
                               return DropdownMenuItem<String>(
                                 value: type.id,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(type.label),
+                                    Expanded(
+                                      child: Text(
+                                        type.label,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
                                     const SizedBox(width: 10),
-                                    Text(type.fine, style: TextStyle(color: AppTheme.gold)),
+                                    Flexible(
+                                      child: Text(
+                                        type.fine,
+                                        style: const TextStyle(color: AppTheme.gold),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               );

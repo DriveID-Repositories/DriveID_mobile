@@ -60,6 +60,11 @@ class SyncService {
       // 2. Download offense types
       final offenseTypesResponse = await _offenseService.getOffenseTypesRaw();
       await LocalDatabaseService.cacheOffenseTypes(offenseTypesResponse);
+
+      // 3. Cache dashboard stats snapshot
+      final stats = await _dashboardService.getDashboardStats();
+      await LocalDatabaseService.cacheDashboardStats(stats.toJson());
+
       log('Successfully cached data for offline use.');
     } catch (e) {
       log('Failed to download cache data: $e');
