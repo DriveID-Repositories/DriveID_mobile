@@ -1,5 +1,4 @@
-
-// lib/screens/login_screen.darjfjdcmpkawdot
+// lib/features/traffic_officer/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -54,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      _go(user);
+      _navigateForRole(user);
     } catch (e) {
       _show(e.toString(), AppTheme.error);
     } finally {
@@ -62,24 +61,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _go(AppUser user) {
-    final screen = user.isDriver
-        ? DriverDashboard(onLocaleChanged: (Locale locale) {})
-        : const DashboardScreen();
   void _navigateForRole(AppUser user) {
     final Widget destination;
     if (user.isDriver) {
-      destination = DriverDashboard(onLocaleChanged: (Locale locale) {  },);
+      destination = const DriverDashboard();
     } else if (user.isTrafficOfficer) {
       destination = const DashboardScreen();
     } else {
-      _showSnackBar('Unsupported role: ${user.role}', AppTheme.warning);
+      _show('Unsupported role: ${user.role}', AppTheme.warning);
       return;
     }
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => screen),
+      MaterialPageRoute(builder: (_) => destination),
     );
   }
 
@@ -113,7 +108,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo Section
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -141,8 +135,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 48),
-
-                // Toggle Buttons
                 Row(
                   children: [
                     Expanded(
@@ -165,15 +157,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-
-                // Login Form
                 if (_isPasswordLogin)
                   _buildPasswordLoginForm()
                 else
                   _buildESignetLoginButton(),
                 const SizedBox(height: 24),
-
-                // Help Text
                 Text(
                   'Contact your licensing office to get an account',
                   style: TextStyle(
@@ -347,5 +335,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-}
 }
