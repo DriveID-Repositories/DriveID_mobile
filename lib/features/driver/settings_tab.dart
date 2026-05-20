@@ -2,11 +2,10 @@
 import 'package:driveid_app/features/driver/services/activity_service.dart';
 import 'package:driveid_app/features/driver/services/user_session.dart';
 import 'package:driveid_app/features/traffic_officer/services/auth_service.dart';
+import 'package:driveid_app/features/traffic_officer/screens/login_screen.dart';
+import 'package:driveid_app/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/theme/app_theme.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../features/traffic_officer/screens/login_screen.dart';
 import 'profile_screen.dart';
 import 'change_password_screen.dart';
 
