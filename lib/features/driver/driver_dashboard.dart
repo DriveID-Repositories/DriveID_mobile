@@ -2,16 +2,16 @@
 import 'package:driveid_app/features/driver/services/activity_service.dart';
 import 'package:driveid_app/features/driver/services/user_session.dart';
 import 'package:flutter/material.dart';
-import 'package:driveid_app/core/theme/app_theme.dart';
-import 'package:driveid_app/features/traffic_officer/screens/login_screen.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../traffic_officer/services/auth_service.dart';
+import '../traffic_officer/screens/login_screen.dart';
 import 'my_license_tab.dart';
 import 'history_screen.dart';
 import 'settings_tab.dart';
 
 class DriverDashboard extends StatefulWidget {
-  const DriverDashboard();
+  const DriverDashboard({super.key});
 
   @override
   State<DriverDashboard> createState() => _DriverDashboardState();
@@ -31,7 +31,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
       SettingsTab(),
     ];
   }
-
   Future<void> _logout(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -55,7 +54,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
     final userId = UserSession().userId;
     if (userId != null) {
       await ActivityService().logActivity(
-        userId: userId,
+
         action: 'logout',
         details: 'User logged out',
       );
@@ -69,7 +68,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
       );
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

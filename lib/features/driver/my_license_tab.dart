@@ -1,10 +1,13 @@
 // lib/features/driver/my_license_tab.dart
+// ignore_for_file: dead_code
+
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:driveid_app/features/driver/services/activity_service.dart';
 import 'package:driveid_app/features/driver/services/user_session.dart';
-
+import 'package:driveid_app/features/driver/services/activity_service.dart';
+import 'package:driveid_app/features/driver/services/user_session.dart';
+import 'package:driveid_app/features/driver/settings_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qr_flutter/qr_flutter.dart';
@@ -37,11 +40,12 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
   late Future<List<Map<String, dynamic>>> _offensesFuture;
   late Timer _qrRefreshTimer;
   final ValueNotifier<String> _qrData = ValueNotifier<String>('');
-  bool _isLogged = false;
+  bool _sessionSet = false;
 
   @override
   void initState() {
     super.initState();
+    _loadData();
     _profileFuture = _fetchFullProfile();
     _offensesFuture = _fetchOffenses();
     _qrRefreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
@@ -52,6 +56,18 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
     });
   }
 
+  void _loadData() {
+    _profileFuture = _fetchFullProfile();
+    _offensesFuture = _fetchOffenses();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _loadData();
+    });
+    await Future.wait([_profileFuture, _offensesFuture]);
+  }
+
   @override
   void dispose() {
     _qrRefreshTimer.cancel();
@@ -60,96 +76,15 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
   }
 
   Future<DriverFullProfile> _fetchFullProfile() async {
-    final appToken = await AuthService.appToken;
-    if (appToken != null && appToken.isNotEmpty) {
-      final res = await http.get(
-        Uri.parse('${AuthService.backendBaseUrl}/driver/license'),
-        headers: {'Authorization': 'Bearer $appToken'},
-      );
-
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body) as Map<String, dynamic>;
-        final driver = Map<String, dynamic>.from(
-          data['driver'] as Map<String, dynamic>,
-        );
-        final licenseResponse = Map<String, dynamic>.from(
-          data['license'] as Map<String, dynamic>,
-        );
-        final citizen = data['citizen'] == null
-            ? null
-            : Map<String, dynamic>.from(data['citizen'] as Map<String, dynamic>);
-
-        final combined = {
-          ...licenseResponse,
-          'full_name': driver['full_name'],
-          'photo_url': driver['driver_photo_url'],
-          'register_number': licenseResponse['license_number'],
-          'license_type': licenseResponse['license_class'],
-          'status': licenseResponse['license_status'],
-        };
-
-        final license = local.DriverLicense.fromJson(combined);
-        final sex = citizen?['sex'] ?? 'Not available';
-        final nationality = citizen?['nationality'] ?? 'Not available';
-        final dob = citizen?['dob'] != null
-            ? DateTime.parse(citizen!['dob'])
-            : null;
-
-        if (!_isLogged) {
-          _isLogged = true;
-          final userId = license.driverId ?? driver['id']?.toString() ?? '';
-          UserSession().setUser(userId, reg: license.registerNumber);
-          unawaited(
-            ActivityService().logActivity(
-              userId: userId,
-              action: 'view_license',
-              details: 'Viewed digital license',
-            ),
-          );
-          _generateQRData(license.registerNumber);
-        }
-
-        return DriverFullProfile(
-          license: license,
-          sex: sex,
-          nationality: nationality,
-          dob: dob,
-        );
-      } else {
-        debugPrint('[MyLicenseTab] /driver/license status=${res.statusCode}');
-      }
-    }
-
     final supabase = Supabase.instance.client;
-    final supabaseUser = supabase.auth.currentUser;
-    final appUser = await AuthService.currentUser;
-    final authUserId =
-        appUser?.userData?['auth_user_id']?.toString() ??
-        appUser?.id ??
-        supabaseUser?.id;
-    debugPrint(
-      '[MyLicenseTab] supabaseUser=${supabaseUser?.id} appUser=${appUser?.id} '
-      'appUser.auth_user_id=${appUser?.userData?['auth_user_id']} resolved=$authUserId',
-    );
+    final user = supabase.auth.currentUser;
+    if (user == null) throw Exception('Not logged in');
 
-    if (authUserId == null || authUserId.isEmpty) {
-      throw Exception('Not logged in');
-    }
-
-    var driverResponse = await supabase
+    final driverResponse = await supabase
         .from('drivers')
         .select('id, full_name, driver_photo_url, national_id')
-        .eq('auth_user_id', authUserId)
+        .eq('auth_user_id', user.id)
         .maybeSingle();
-
-    if (driverResponse == null) {
-      driverResponse = await supabase
-          .from('drivers')
-          .select('id, full_name, driver_photo_url, national_id')
-          .eq('id', authUserId)
-          .maybeSingle();
-    }
-
     if (driverResponse == null) throw Exception('No driver profile found');
 
     final driverId = driverResponse['id'];
@@ -188,23 +123,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
       'status': licenseResponse['license_status'],
     };
     final license = local.DriverLicense.fromJson(combined);
-    
-    // Log activity only once
-    if (!_isLogged) {
-      _isLogged = true;
-      final userId = license.driverId ?? authUserId;
-      UserSession().setUser(userId, reg: license.registerNumber);
-      // Use unawaited to avoid slowing down the future
-      unawaited(
-        ActivityService().logActivity(
-          userId: userId,
-          action: 'view_license',
-          details: 'Viewed digital license',
-        )
-      );
-      _generateQRData(license.registerNumber);
-    }
-
     return DriverFullProfile(
       license: license,
       sex: sex,
@@ -242,7 +160,7 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
 
   void _generateQRData(String registerNumber) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final verificationUrl = 'https://driveid.gov.mw/verify/${registerNumber}?t=$timestamp';
+    final verificationUrl = 'https://driveid.gov.mw/verify/$registerNumber?t=$timestamp';
     _qrData.value = verificationUrl;
   }
 
@@ -281,13 +199,31 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
 
         final profile = snapshot.data!;
         final license = profile.license;
-
-        if (!_isLogged) {
-          _isLogged = true;
+        if (!_sessionSet) {
+          _sessionSet = true;
           UserSession().setUser(license.driverId ?? '', reg: license.registerNumber);
-          ActivityService().logActivity(action: 'view_license', details: 'Viewed digital license', userId: '');
           _generateQRData(license.registerNumber);
         }
+
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const Text(
+                  'Your official driving license',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 20),
+                _buildLicenseCard(profile),
+                const SizedBox(height: 20),
+                _buildOffensesCard(),
+              ],
+            ),
+          ),
+        )
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -304,6 +240,7 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
     );
   }
 
+  // --- License card (same as before, no changes) ---
   Widget _buildLicenseCard(DriverFullProfile profile) {
     final license = profile.license;
 
@@ -318,7 +255,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
         borderRadius: BorderRadius.circular(28),
         child: Column(
           children: [
-            // Gold Header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -360,8 +296,7 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: license.photoUrl != null && license.photoUrl!.isNotEmpty
-                            ? Image.network(license.photoUrl!, width: 60, height: 60, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _defaultAvatar())
+                            ? Image.network(license.photoUrl!, width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _defaultAvatar())
                             : _defaultAvatar(),
                       ),
                       const SizedBox(width: 16),
@@ -443,11 +378,13 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
                           },
                         ),
                         const SizedBox(height: 12),
+                        Text(license.registerNumber, style: const TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 1)),
+                        const SizedBox(height: 8),
+                        const Text('QR code refreshes every 5 minutes', style: TextStyle(color: Colors.white38, fontSize: 10)),
                         Text(
                           license.registerNumber,
                           style: const TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 1),
                         ),
-                      
                       ],
                     ),
                   ),
@@ -459,14 +396,30 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
       ),
     );
   }
-
-  // Separate card for offenses (below the license card)
   Widget _buildOffensesCard() {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C24).withOpacity(0.7),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.gavel, color: Color(0xFFFFC124), size: 20),
+                  const SizedBox(width: 8),
+                  const Text('OFFENSES', style: TextStyle(color: Color(0xFFFFC124), fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+                ]
+              )
+            )
+          ]
+        )
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -474,13 +427,13 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header with icon and title
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
                 children: [
-                  const Icon(Icons.gavel, color: Color(0xFFFFC124), size: 20),
-                  const SizedBox(width: 8),
-                  const Text(
+                  Icon(Icons.gavel, color: Color(0xFFFFC124), size: 20),
+                  SizedBox(width: 8),
+                  Text(
                     'OFFENSES & FINES',
                     style: TextStyle(
                       color: Color(0xFFFFC124),
@@ -494,6 +447,7 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
             ),
             const Divider(color: Colors.white24, height: 1),
             _buildOffensesList(),
+            const SizedBox(height: 8),
             const SizedBox(height: 12),
           ],
         ),
@@ -539,6 +493,7 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
                 isPaidOrResolved ? Icons.check_circle : Icons.warning_amber,
                 color: isPaidOrResolved ? Colors.green : Colors.orange,
               ),
+              title: Text(off['offense_type'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
               title: Text(
                 off['offense_type'],
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
@@ -576,8 +531,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
       },
     );
   }
-
-  // ----- Helper widgets -----
   Widget _infoColumn(IconData icon, String label, String value, {Color? valueColor}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -642,10 +595,7 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
     return '${date.day} ${_monthAbbr(date.month)} ${date.year}';
   }
 
-  String _monthAbbr(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[month - 1];
-  }
+  String _monthAbbr(int month) => const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1];
 
   String _formatDateString(String iso) {
     final dt = DateTime.parse(iso);

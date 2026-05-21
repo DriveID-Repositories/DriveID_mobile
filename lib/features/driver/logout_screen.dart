@@ -17,7 +17,6 @@ class _LogoutScreenState extends State<LogoutScreen> {
     final userId = UserSession().userId;
     if (userId != null) {
       await ActivityService().logActivity(
-        userId: userId,
         action: 'logout',
         details: 'User logged out',
       );

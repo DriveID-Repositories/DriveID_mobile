@@ -1,7 +1,7 @@
 import 'package:driveid_app/features/driver/services/activity_service.dart';
-import 'package:driveid_app/features/driver/services/user_session.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
 
@@ -52,10 +52,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         UserAttributes(password: _newPasswordController.text.trim()),
       );
 
-      // Log activity
-      final userId = UserSession().userId ?? user.id;
+      // Log activity (userId is automatically obtained inside the service)
       await ActivityService().logActivity(
-        userId: userId,
         action: 'change_password',
         details: 'Password changed successfully',
       );

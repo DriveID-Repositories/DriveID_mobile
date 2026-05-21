@@ -1,11 +1,18 @@
+<<<<<<< Updated upstream
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/theme/app_theme.dart';
+import '../../../features/traffic_officer/services/auth_service.dart';
+=======
 // lib/features/driver/settings_tab.dart
 import 'package:driveid_app/features/driver/services/activity_service.dart';
 import 'package:driveid_app/features/driver/services/user_session.dart';
 import 'package:driveid_app/features/traffic_officer/services/auth_service.dart';
-import 'package:driveid_app/features/traffic_officer/screens/login_screen.dart';
-import 'package:driveid_app/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/theme/app_theme.dart';
+>>>>>>> Stashed changes
+import '../../../features/traffic_officer/screens/login_screen.dart';
 import 'profile_screen.dart';
 import 'change_password_screen.dart';
 
@@ -80,6 +87,8 @@ class _SettingsTabState extends State<SettingsTab> {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
+<<<<<<< Updated upstream
+=======
               final userId = UserSession().userId;
               if (userId != null) {
                 await ActivityService().logActivity(
@@ -89,6 +98,7 @@ class _SettingsTabState extends State<SettingsTab> {
                 );
               }
               UserSession().clear();
+>>>>>>> Stashed changes
               await AuthService.logout();
               if (context.mounted) {
                 Navigator.pushReplacement(
@@ -128,7 +138,11 @@ class _SettingsTabState extends State<SettingsTab> {
           title: const Text('Notifications', style: TextStyle(color: Colors.white)),
           value: _notificationsEnabled,
           onChanged: _saveNotifications,
+<<<<<<< Updated upstream
+          activeThumbColor: AppTheme.gold,
+=======
           activeColor: AppTheme.gold,
+>>>>>>> Stashed changes
         ),
         const Divider(color: Colors.white24, height: 32),
 
@@ -151,7 +165,10 @@ class _SettingsTabState extends State<SettingsTab> {
         ),
         const Divider(color: Colors.white24, height: 32),
 
+<<<<<<< Updated upstream
+=======
         // Danger zone – Logout
+>>>>>>> Stashed changes
         _buildSectionHeader('Danger Zone', color: Colors.redAccent),
         _buildMenuItem(
           icon: Icons.logout,
