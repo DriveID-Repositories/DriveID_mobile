@@ -223,18 +223,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
               ],
             ),
           ),
-        )
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              _buildLicenseCard(profile),  // license card only
-              const SizedBox(height: 20),
-              _buildOffensesCard(),        // separate card for offenses
-            ],
-          ),
         );
       },
     );
@@ -408,25 +396,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.gavel, color: Color(0xFFFFC124), size: 20),
-                  const SizedBox(width: 8),
-                  const Text('OFFENSES', style: TextStyle(color: Color(0xFFFFC124), fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
-                ]
-              )
-            )
-          ]
-        )
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with icon and title
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
@@ -448,7 +417,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
             const Divider(color: Colors.white24, height: 1),
             _buildOffensesList(),
             const SizedBox(height: 8),
-            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -493,7 +461,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
                 isPaidOrResolved ? Icons.check_circle : Icons.warning_amber,
                 color: isPaidOrResolved ? Colors.green : Colors.orange,
               ),
-              title: Text(off['offense_type'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
               title: Text(
                 off['offense_type'],
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),

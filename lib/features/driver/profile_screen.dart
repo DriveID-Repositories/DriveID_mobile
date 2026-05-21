@@ -15,7 +15,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-<<<<<<< Updated upstream
     _loadData();
   }
 
@@ -29,22 +28,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _loadData();
     });
     await Future.wait([_profileFuture, _offensesFuture]);
-=======
-    _profileFuture = _fetchDriverFullProfile();
-    _offensesFuture = _fetchOffenses();
->>>>>>> Stashed changes
   }
 
   Future<Map<String, dynamic>?> _fetchDriverFullProfile() async {
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser;
     if (user == null) return null;
-<<<<<<< Updated upstream
-    return await supabase
-=======
 
     final response = await supabase
->>>>>>> Stashed changes
         .from('drivers')
         .select('''
           full_name,
@@ -63,6 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ''')
         .eq('auth_user_id', user.id)
         .maybeSingle();
+    return response;
   }
 
   Future<List<Map<String, dynamic>>> _fetchOffenses() async {
@@ -70,15 +62,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = supabase.auth.currentUser;
     if (user == null) return [];
 
-<<<<<<< Updated upstream
-    final driver = await supabase.from('drivers').select('id').eq('auth_user_id', user.id).maybeSingle();
-    if (driver == null) return [];
-
-    final license = await supabase.from('licenses').select('license_number').eq('driver_id', driver['id']).maybeSingle();
-    if (license == null) return [];
-
-    return await supabase.from('offenses').select().eq('registration_number', license['license_number']).order('created_at', ascending: false);
-=======
     final driver = await supabase
         .from('drivers')
         .select('id')
@@ -99,14 +82,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .eq('registration_number', license['license_number'])
         .order('created_at', ascending: false);
     return offenses;
-  }
-
-  void _refresh() {
-    setState(() {
-      _profileFuture = _fetchDriverFullProfile();
-      _offensesFuture = _fetchOffenses();
-    });
->>>>>>> Stashed changes
   }
 
   @override
@@ -240,156 +215,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             );
-<<<<<<< Updated upstream
           },
         ),
-=======
-          }
-          final profile = snapshot.data!;
-          final license = profile['licenses'] as List<dynamic>?;
-          final licenseData = (license != null && license.isNotEmpty) ? license.first as Map<String, dynamic> : null;
-
-          final photoUrl = profile['driver_photo_url'];
-          final fullName = profile['full_name'] ?? 'Not set';
-          final email = profile['email'] ?? 'Not set';
-          final phone = profile['phone_number'] ?? 'Not set';
-          final nationalId = profile['national_id'] ?? 'Not set';
-          final dob = profile['date_of_birth'] != null
-              ? _formatDate(DateTime.parse(profile['date_of_birth']))
-              : 'Not set';
-          final licenseNumber = licenseData?['license_number'] ?? 'Not issued';
-          final licenseClass = licenseData?['license_class'] ?? 'None';
-          final issueDate = licenseData?['issue_date'] != null
-              ? _formatDate(DateTime.parse(licenseData!['issue_date']))
-              : 'None';
-          final expiryDate = licenseData?['expiry_date'] != null
-              ? _formatDate(DateTime.parse(licenseData!['expiry_date']))
-              : 'None';
-          final licenseStatus = licenseData?['license_status'] ?? 'None';
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: photoUrl != null && photoUrl.toString().isNotEmpty
-                      ? Image.network(
-                          photoUrl,
-                          width: 150,
-                          height: 150,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _defaultAvatar(),
-                        )
-                      : _defaultAvatar(),
-                ),
-                const SizedBox(height: 16),
-
-                _infoCard('Personal Information', [
-                  _infoTile('Full Name', fullName),
-                  _infoTile('National ID', nationalId),
-                  _infoTile('Date of Birth', dob),
-                  _infoTile('Email', email),
-                  _infoTile('Phone Number', phone),
-                ]),
-
-                const SizedBox(height: 24),
-
-                _infoCard('Driving License Information', [
-                  _infoTile('License Number', licenseNumber),
-                  _infoTile('License Class', licenseClass),
-                  _infoTile('Issue Date', issueDate),
-                  _infoTile('Expiry Date', expiryDate),
-                  _statusTile('Status', licenseStatus),
-                ]),
-
-                const SizedBox(height: 24),
-
-                _infoCard('Offenses', [
-                  FutureBuilder<List<Map<String, dynamic>>>(
-                    future: _offensesFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      if (snapshot.hasError || snapshot.data == null) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text('Failed to load offenses', style: TextStyle(color: Colors.white70)),
-                        );
-                      }
-                      final offenses = snapshot.data!;
-                      if (offenses.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text('No offenses recorded', style: TextStyle(color: Colors.white54)),
-                        );
-                      }
-                      return ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: offenses.length,
-                        separatorBuilder: (_, __) => const Divider(color: Colors.white24),
-                        itemBuilder: (context, index) {
-                          final off = offenses[index];
-                          final status = off['status'] ?? 'Pending';
-                          final isPaidOrResolved = status.toLowerCase() == 'paid' || status.toLowerCase() == 'resolved';
-                          return ListTile(
-                            leading: Icon(
-                              isPaidOrResolved ? Icons.check_circle : Icons.warning_amber,
-                              color: isPaidOrResolved ? Colors.green : Colors.orange,
-                            ),
-                            title: Text(off['offense_type'], style: const TextStyle(color: Colors.white)),
-                            subtitle: Text(
-                              '${off['location']} • ${_formatDateString(off['created_at'])}',
-                              style: const TextStyle(color: Colors.white54),
-                            ),
-                            trailing: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('MK ${off['fine']}', style: const TextStyle(color: Color(0xFFFFC124))),
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: isPaidOrResolved
-                                        ? Colors.green.withOpacity(0.2)
-                                        : Colors.red.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    status.toUpperCase(),
-                                    style: TextStyle(
-                                      color: isPaidOrResolved ? Colors.green : Colors.red,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ]),
-
-                const SizedBox(height: 32),
-                const Text(
-                  'This information is managed by the government registry.',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
-        },
->>>>>>> Stashed changes
       ),
     );
   }
@@ -443,18 +270,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-<<<<<<< Updated upstream
-  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
-  String _formatDateString(String iso) => _formatDate(DateTime.parse(iso));
-  Widget _defaultAvatar() => Container(width: 150, height: 150, decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.person, size: 60, color: Color(0xFFFFC124)));
-=======
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
   }
 
   String _formatDateString(String iso) {
-    final dt = DateTime.parse(iso);
-    return '${dt.day}/${dt.month}/${dt.year}';
+    return _formatDate(DateTime.parse(iso));
   }
 
   Widget _defaultAvatar() {
@@ -468,5 +289,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: const Icon(Icons.person, size: 60, color: Color(0xFFFFC124)),
     );
   }
->>>>>>> Stashed changes
 }
