@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' show log;
 
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,14 +9,27 @@ class LocationService {
 
   Future<bool> ensurePermission() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return false;
+    if (!serviceEnabled) {
+      log('LocationService: Location service is not enabled');
+      return false;
+    }
 
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+      log(
+        'LocationService: Permission was denied, requested permission. Result: $permission',
+      );
     }
-    if (permission == LocationPermission.denied) return false;
-    if (permission == LocationPermission.deniedForever) return false;
+    if (permission == LocationPermission.denied) {
+      log('LocationService: Permission was denied');
+      return false;
+    }
+    if (permission == LocationPermission.deniedForever) {
+      log('LocationService: Permission was denied forever');
+      return false;
+    }
+    log('LocationService: Permission granted');
     return true;
   }
 
@@ -31,7 +45,10 @@ class LocationService {
 
   Future<String?> getCurrentAddressString() async {
     final pos = await getCurrentPosition();
-    if (pos == null) return null;
+    if (pos == null) {
+      log('LocationService: Failed to get current position');
+      return null;
+    }
 
     try {
       final placemarks = await placemarkFromCoordinates(
@@ -50,12 +67,18 @@ class LocationService {
           p.administrativeArea!.trim(),
       ];
 
-      if (parts.isNotEmpty) return parts.join(', ');
-    } catch (_) {
-      // fall back to coordinates below
+      if (parts.isNotEmpty) {
+        log('LocationService: Successfully got address: ${parts.join(", ")}');
+        return parts.join(', ');
+      }
+    } catch (e, stack) {
+      log('LocationService: Geocoding failed: $e');
+      log('Stack trace: $stack');
     }
 
-    return 'Lat ${pos.latitude.toStringAsFixed(5)}, Lng ${pos.longitude.toStringAsFixed(5)}';
+    final fallbackText =
+        'Lat ${pos.latitude.toStringAsFixed(5)}, Lng ${pos.longitude.toStringAsFixed(5)}';
+    log('LocationService: Using fallback location: $fallbackText');
+    return fallbackText;
   }
 }
-

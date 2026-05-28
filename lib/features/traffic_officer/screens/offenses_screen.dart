@@ -52,17 +52,37 @@ class _OffensesScreenState extends State<OffensesScreen> {
   }
 
   Future<void> _autoFillLocationIfEmpty() async {
-    if (_isLocating) return;
-    if (locationController.text.trim().isNotEmpty) return;
+    if (_isLocating) {
+      log('OffensesScreen: Location already being fetched');
+      return;
+    }
+    if (locationController.text.trim().isNotEmpty) {
+      log(
+        'OffensesScreen: Location already filled: ${locationController.text}',
+      );
+      return;
+    }
     setState(() => _isLocating = true);
     try {
+      log('OffensesScreen: Starting auto-fill location...');
       final text = await _locationService.getCurrentAddressString();
-      if (!mounted) return;
-      if (text != null && text.trim().isNotEmpty) {
-        locationController.text = text.trim();
+      if (!mounted) {
+        log('OffensesScreen: Widget unmounted before location result');
+        return;
       }
+      if (text != null && text.trim().isNotEmpty) {
+        log('OffensesScreen: Auto-fill successful: $text');
+        locationController.text = text.trim();
+      } else {
+        log('OffensesScreen: Location service returned null or empty');
+      }
+    } catch (e, stack) {
+      log('OffensesScreen: Auto-fill location error: $e');
+      log('Stack trace: $stack');
     } finally {
-      if (mounted) setState(() => _isLocating = false);
+      if (mounted) {
+        setState(() => _isLocating = false);
+      }
     }
   }
 
@@ -511,21 +531,25 @@ class _OffensesScreenState extends State<OffensesScreen> {
                                 ),
                                 suffixIcon: IconButton(
                                   tooltip: 'Use current location',
-                                  onPressed: _isLocating
-                                      ? null
-                                      : () async {
-                                          locationController.clear();
-                                          await _autoFillLocationIfEmpty();
-                                        },
-                                  icon: _isLocating
-                                      ? const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
+                                  onPressed:
+                                      _isLocating
+                                          ? null
+                                          : () async {
+                                            locationController.clear();
+                                            await _autoFillLocationIfEmpty();
+                                          },
+                                  icon:
+                                      _isLocating
+                                          ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                          : const Icon(
+                                            Icons.my_location_rounded,
                                           ),
-                                        )
-                                      : const Icon(Icons.my_location_rounded),
                                 ),
                                 filled: true,
                                 fillColor: AppTheme.background,
@@ -541,7 +565,9 @@ class _OffensesScreenState extends State<OffensesScreen> {
                             ),
                             const SizedBox(height: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppTheme.background,
                                 borderRadius: BorderRadius.circular(12),
@@ -565,7 +591,8 @@ class _OffensesScreenState extends State<OffensesScreen> {
                                               Expanded(
                                                 child: Text(
                                                   type.label,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                               const SizedBox(width: 10),
@@ -575,7 +602,8 @@ class _OffensesScreenState extends State<OffensesScreen> {
                                                   style: const TextStyle(
                                                     color: AppTheme.gold,
                                                   ),
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -725,7 +753,9 @@ class _OffensesScreenState extends State<OffensesScreen> {
                                 SizedBox(height: 12),
                                 Text(
                                   'No offenses recorded yet',
-                                  style: TextStyle(color: AppTheme.textSecondary),
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                  ),
                                 ),
                               ],
                             ),
