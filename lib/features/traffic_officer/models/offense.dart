@@ -1,44 +1,47 @@
 class Offense {
   final String id;
   final String name;
-  final String licenseNumber;
+  final String registrationNumber;
   final String offenseType;
   final String location;
   final String status;
-  final String fine;
+  final dynamic fine;
   final DateTime createdAt;
+  final String? offenseTypeId;
+  final String? recordedBy;
+  final String? licenseClass;
 
   Offense({
     required this.id,
     required this.name,
-    required this.licenseNumber,
+    required this.registrationNumber,
     required this.offenseType,
     required this.location,
     required this.status,
     required this.fine,
     required this.createdAt,
+    this.offenseTypeId,
+    this.recordedBy,
+    this.licenseClass,
   });
 
   factory Offense.fromJson(Map<String, dynamic> json) {
     return Offense(
       id: (json['id'] ?? 'pending-${DateTime.now().millisecondsSinceEpoch}').toString(),
       name: json['name'] as String,
-      licenseNumber:
-          (json['license_number'] ??
-                  json['registration_number'] ??
+      registrationNumber:
+          (json['registration_number'] ??
+                  json['license_number'] ??
                   json['register_number'])
               as String,
       offenseType: json['offense_type'] as String,
       location: json['location'] as String,
-      status: json['status'] as String,
-      fine:
-          (json['fine'] ??
-                  json['amount'] ??
-                  json['penalty_amount'] ??
-                  json['penalty'] ??
-                  'TBD')
-              .toString(),
+      status: json['status'] as String? ?? 'Pending',
+      fine: json['fine'] ?? 'TBD',
       createdAt: DateTime.parse(json['created_at'] as String),
+      offenseTypeId: json['offense_type_id'] as String?,
+      recordedBy: json['recorded_by'] as String?,
+      licenseClass: json['license_class'] as String?,
     );
   }
 
@@ -46,12 +49,15 @@ class Offense {
     return {
       'id': id,
       'name': name,
-      'license_number': licenseNumber,
+      'registration_number': registrationNumber,
       'offense_type': offenseType,
       'location': location,
       'status': status,
       'fine': fine,
       'created_at': createdAt.toIso8601String(),
+      if (offenseTypeId != null) 'offense_type_id': offenseTypeId,
+      if (recordedBy != null) 'recorded_by': recordedBy,
+      if (licenseClass != null) 'license_class': licenseClass,
     };
   }
 }

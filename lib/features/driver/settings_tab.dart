@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_theme.dart';
 import '../traffic_officer/screens/login_screen.dart';
 import 'profile_screen.dart';
-import 'change_password_screen.dart';
 
 class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
@@ -113,11 +112,7 @@ class _SettingsTabState extends State<SettingsTab> {
           title: 'View Profile',
           onTap: () => _navigateTo('/profile'),
         ),
-        _buildMenuItem(
-          icon: Icons.lock_outline,
-          title: 'Change Password',
-          onTap: () => _navigateTo('/change-password'),
-        ),
+      
         const Divider(color: Colors.white24, height: 32),
 
         _buildSectionHeader('Preferences'),

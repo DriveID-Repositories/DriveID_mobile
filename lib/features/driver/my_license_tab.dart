@@ -241,11 +241,7 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                const Text(
-                  'Your official driving license',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                const SizedBox(height: 20),
+                
                 _buildLicenseCard(profile),
               ],
             ),
@@ -255,7 +251,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
     );
   }
 
-  // --- License card (same as before, no changes) ---
   Widget _buildLicenseCard(DriverFullProfile profile) {
     final license = profile.license;
 
@@ -311,7 +306,7 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: license.photoUrl != null && license.photoUrl!.isNotEmpty
-                            ? Image.network(license.photoUrl!, width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _defaultAvatar())
+                            ? Image.network(license.photoUrl!, width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _defaultAvatar())
                             : _defaultAvatar(),
                       ),
                       const SizedBox(width: 16),
@@ -391,14 +386,6 @@ class _MyLicenseTabState extends State<MyLicenseTab> {
                               ),
                             );
                           },
-                        ),
-                        const SizedBox(height: 12),
-                        Text(license.registerNumber, style: const TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 1)),
-                        const SizedBox(height: 8),
-                        const Text('QR code refreshes every 5 minutes', style: TextStyle(color: Colors.white38, fontSize: 10)),
-                        Text(
-                          license.registerNumber,
-                          style: const TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 1),
                         ),
                       ],
                     ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:driveid_app/features/driver/services/user_session.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -32,8 +33,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<Map<String, dynamic>?> _fetchDriverFullProfile() async {
     final supabase = Supabase.instance.client;
-    final user = supabase.auth.currentUser;
-    if (user == null) return null;
+    final driverId = UserSession().userId;  // ✅ Use stored driver ID
+
+    if (driverId == null) return null;
 
     final response = await supabase
         .from('drivers')
@@ -52,27 +54,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             license_status
           )
         ''')
-        .eq('auth_user_id', user.id)
+        .eq('id', driverId)  // ✅ Query by driver ID, not auth_user_id
         .maybeSingle();
     return response;
   }
 
   Future<List<Map<String, dynamic>>> _fetchOffenses() async {
     final supabase = Supabase.instance.client;
-    final user = supabase.auth.currentUser;
-    if (user == null) return [];
-
-    final driver = await supabase
-        .from('drivers')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .maybeSingle();
-    if (driver == null) return [];
+    final driverId = UserSession().driverId;
+    if (driverId == null) return [];
 
     final license = await supabase
         .from('licenses')
         .select('license_number')
-        .eq('driver_id', driver['id'])
+        .eq('driver_id', driverId)
         .maybeSingle();
     if (license == null) return [];
 
@@ -270,13 +265,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
-  String _formatDateString(String iso) {
-    return _formatDate(DateTime.parse(iso));
-  }
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
+  String _formatDateString(String iso) => _formatDate(DateTime.parse(iso));
 
   Widget _defaultAvatar() {
     return Container(
