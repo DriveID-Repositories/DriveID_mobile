@@ -921,7 +921,7 @@ class _OffensesScreenState extends State<OffensesScreen> {
                             ),
                           ),
                           Text(
-                            offense.licenseNumber,
+                            offense.registrationNumber,
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppTheme.textSecondary,

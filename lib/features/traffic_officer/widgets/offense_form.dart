@@ -5,11 +5,15 @@ class OffenseFormData {
   final String offenseType;
   final String? fine;
   final String location;
+  final String? recordedBy;
+  final String? licenseClass;
 
   OffenseFormData({
     required this.offenseType,
     this.fine,
     required this.location,
+    this.recordedBy,
+    this.licenseClass,
   });
 }
 
@@ -40,6 +44,8 @@ class OffenseForm extends StatefulWidget {
 class _OffenseFormState extends State<OffenseForm> {
   late TextEditingController _offenseTypeController;
   late TextEditingController _locationController;
+  late TextEditingController _recordedByController;
+  late TextEditingController _licenseClassController;
   bool _isSubmitting = false;
 
   @override
@@ -47,12 +53,16 @@ class _OffenseFormState extends State<OffenseForm> {
     super.initState();
     _offenseTypeController = TextEditingController();
     _locationController = TextEditingController();
+    _recordedByController = TextEditingController();
+    _licenseClassController = TextEditingController();
   }
 
   @override
   void dispose() {
     _offenseTypeController.dispose();
     _locationController.dispose();
+    _recordedByController.dispose();
+    _licenseClassController.dispose();
     super.dispose();
   }
 
@@ -72,6 +82,8 @@ class _OffenseFormState extends State<OffenseForm> {
       offenseType: _offenseTypeController.text,
       fine: fine,
       location: _locationController.text,
+      recordedBy: _recordedByController.text.isNotEmpty ? _recordedByController.text : null,
+      licenseClass: _licenseClassController.text.isNotEmpty ? _licenseClassController.text : null,
     );
 
     widget.onSubmit(formData);
@@ -249,6 +261,84 @@ class _OffenseFormState extends State<OffenseForm> {
                 enabled: !_isSubmitting,
                 decoration: InputDecoration(
                   hintText: 'Enter offense location',
+                  hintStyle: const TextStyle(color: AppTheme.textSecondary),
+                  filled: true,
+                  fillColor: Colors.white10,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.white10),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.white10),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: AppTheme.gold,
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+                style: const TextStyle(color: Colors.white),
+                maxLines: 1,
+              ),
+              const SizedBox(height: 24),
+
+              // Recorded By Field (Optional)
+              const Text(
+                'Recorded By (Optional)',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _recordedByController,
+                enabled: !_isSubmitting,
+                decoration: InputDecoration(
+                  hintText: 'Officer name or ID',
+                  hintStyle: const TextStyle(color: AppTheme.textSecondary),
+                  filled: true,
+                  fillColor: Colors.white10,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.white10),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.white10),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: AppTheme.gold,
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+                style: const TextStyle(color: Colors.white),
+                maxLines: 1,
+              ),
+              const SizedBox(height: 24),
+
+              // License Class Field (Optional)
+              const Text(
+                'License Class (Optional)',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _licenseClassController,
+                enabled: !_isSubmitting,
+                decoration: InputDecoration(
+                  hintText: 'e.g., A, B, C, D',
                   hintStyle: const TextStyle(color: AppTheme.textSecondary),
                   filled: true,
                   fillColor: Colors.white10,

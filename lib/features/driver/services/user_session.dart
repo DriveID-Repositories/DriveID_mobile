@@ -1,11 +1,13 @@
-// lib/services/user_session.dart
+// lib/features/driver/services/user_session.dart
 class UserSession {
   static final UserSession _instance = UserSession._internal();
   factory UserSession() => _instance;
   UserSession._internal();
 
-  String? userId;
+  String? userId;         
   String? registerNumber;
+
+  String? get driverId => userId;
 
   void setUser(String id, {String? reg}) {
     userId = id;
@@ -16,4 +18,6 @@ class UserSession {
     userId = null;
     registerNumber = null;
   }
+
+  bool get isLoggedIn => userId != null;
 }
