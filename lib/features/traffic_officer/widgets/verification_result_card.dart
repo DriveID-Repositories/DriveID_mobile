@@ -47,6 +47,172 @@ class VerificationResultCard extends StatelessWidget {
         normalized == 'cleared';
   }
 
+  num _parseFineAmount(dynamic fineValue) {
+    if (fineValue == null) return 0;
+    final fineStr = fineValue.toString().trim();
+    if (fineStr.isEmpty || fineStr.toLowerCase() == 'tbd') return 0;
+    // Handles "25000", "25000.0", "MWK 25,000", etc.
+    final cleaned = fineStr.replaceAll(RegExp(r'[^0-9.]'), '');
+    if (cleaned.isEmpty) return 0;
+    return num.tryParse(cleaned) ?? 0;
+  }
+
+  num get _pendingFineTotal {
+    return offenses
+        .where((offense) => !_isResolved(offense.status))
+        .fold<num>(0, (sum, offense) => sum + _parseFineAmount(offense.fine));
+  }
+
+  void _showOpenOffenses(BuildContext context, Color statusColor) {
+    final openOffenses =
+        offenses.where((offense) => !_isResolved(offense.status)).toList();
+    if (openOffenses.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: statusColor.withAlpha(28),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.gavel_rounded, color: statusColor),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Open offenses (${openOffenses.length})',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Pending fine total: MWK ${_pendingFineTotal.toStringAsFixed(0)}',
+                  style: const TextStyle(color: AppTheme.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: openOffenses.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final offense = openOffenses[index];
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.background.withAlpha(130),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white.withAlpha(18)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.error.withAlpha(28),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.warning_amber_rounded,
+                                color: AppTheme.error,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    offense.offenseType,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    offense.location,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              offense.fine,
+                              style: const TextStyle(
+                                color: AppTheme.gold,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onRecordOffense();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.error,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Record another offense',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusColor = _getStatusColor();
@@ -126,21 +292,28 @@ class VerificationResultCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withAlpha(28),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white.withAlpha(36)),
-                  ),
-                  child: Text(
-                    hasOpenOffenses ? 'OPEN OFFENSES' : 'CLEAR RECORD',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.7,
+                InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap:
+                      hasOpenOffenses
+                          ? () => _showOpenOffenses(context, statusColor)
+                          : null,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(28),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white.withAlpha(36)),
+                    ),
+                    child: Text(
+                      hasOpenOffenses ? 'OPEN OFFENSES' : 'CLEAR RECORD',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.7,
+                      ),
                     ),
                   ),
                 ),
@@ -181,27 +354,22 @@ class VerificationResultCard extends StatelessWidget {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(14),
-                          child: license.profilePictureUrl != null
+                          child: (license.profilePictureUrl != null &&
+                                  license.profilePictureUrl!.trim().isNotEmpty)
                               ? Image.network(
-                                  license.profilePictureUrl!,
+                                  license.profilePictureUrl!.trim(),
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) {
-                                    return Center(
-                                      child: Icon(
-                                        Icons.person_outline_rounded,
-                                        color: statusColor,
-                                        size: 34,
-                                      ),
+                                    return _InitialsAvatar(
+                                      name: license.ownerName,
+                                      accent: statusColor,
                                     );
                                   },
                                 )
-                              : Center(
-                                  child: Icon(
-                                    Icons.person_outline_rounded,
-                                    color: statusColor,
-                                    size: 34,
-                                  ),
-                                ),
+                              : _InitialsAvatar(
+                                name: license.ownerName,
+                                accent: statusColor,
+                              ),
                         ),
                       ),
                     ),
@@ -306,6 +474,7 @@ class VerificationResultCard extends StatelessWidget {
                         pendingOffenses: _pendingOffenses,
                         resolvedOffenses: _resolvedOffenses,
                         latestOffense: offenses.isEmpty ? null : offenses.first,
+                        pendingFineTotal: _pendingFineTotal,
                       ),
                     ],
                   ),
@@ -387,6 +556,58 @@ class VerificationResultCard extends StatelessWidget {
   }
 }
 
+class _InitialsAvatar extends StatelessWidget {
+  final String name;
+  final Color accent;
+
+  const _InitialsAvatar({required this.name, required this.accent});
+
+  String _initials(String value) {
+    final parts =
+        value
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((p) => p.trim().isNotEmpty)
+            .toList();
+    if (parts.isEmpty) return 'DR';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppTheme.background,
+      child: Center(
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [accent.withAlpha(180), accent.withAlpha(70)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: accent.withAlpha(120)),
+          ),
+          child: Center(
+            child: Text(
+              _initials(name),
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                color: Colors.white,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _InfoBlock extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -450,12 +671,14 @@ class _OffenseSummaryCard extends StatelessWidget {
   final int pendingOffenses;
   final int resolvedOffenses;
   final Offense? latestOffense;
+  final num pendingFineTotal;
 
   const _OffenseSummaryCard({
     required this.totalOffenses,
     required this.pendingOffenses,
     required this.resolvedOffenses,
     required this.latestOffense,
+    required this.pendingFineTotal,
   });
 
   @override
@@ -513,6 +736,36 @@ class _OffenseSummaryCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(10),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Pending fine total',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  'MWK ${pendingFineTotal.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    color: AppTheme.gold,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           if (latestOffense == null)

@@ -5,12 +5,14 @@ class DashboardStats {
   final int offensesRecorded;
   final int totalVerifications;
   final int pendingOffenses;
+  final num pendingFinesTotal;
 
   DashboardStats({
     required this.verificationsToday,
     required this.offensesRecorded,
     required this.totalVerifications,
     required this.pendingOffenses,
+    required this.pendingFinesTotal,
   });
 
   factory DashboardStats.fromJson(Map<String, dynamic> json) {
@@ -19,6 +21,7 @@ class DashboardStats {
       offensesRecorded: json['offenses_recorded'] as int,
       totalVerifications: json['total_verifications'] as int,
       pendingOffenses: json['pending_offenses'] as int,
+      pendingFinesTotal: (json['pending_fines_total'] as num?) ?? 0,
     );
   }
 
@@ -28,6 +31,7 @@ class DashboardStats {
       'offenses_recorded': offensesRecorded,
       'total_verifications': totalVerifications,
       'pending_offenses': pendingOffenses,
+      'pending_fines_total': pendingFinesTotal,
     };
   }
 }

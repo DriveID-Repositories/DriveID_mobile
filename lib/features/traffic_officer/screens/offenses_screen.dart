@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' show log;
 import '../../../core/theme/app_theme.dart';
 import '../widgets/custom_appbar.dart';
 import '../widgets/custom_bottom_nav.dart';
@@ -8,6 +9,7 @@ import '../services/offense_service.dart';
 import '../services/dashboard_service.dart';
 import '../models/offense.dart';
 import '../models/license.dart';
+import '../../../core/services/location_service.dart';
 import 'dashboard_screen.dart';
 import 'verify_screen.dart';
 
@@ -26,17 +28,51 @@ class _OffensesScreenState extends State<OffensesScreen> {
 
   final OffenseService _offenseService = OffenseService();
   final DashboardService _dashboardService = DashboardService();
+  final LocationService _locationService = const LocationService();
   List<Offense> _offenses = [];
   List<OffenseType> _offenseTypes = [];
   List<License> _allLicenses = [];
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _loadError;
+  bool _isLocating = false;
+
+  // Pagination
+  static const int _pageSize = 20;
+  int _pageOffset = 0;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+  final ScrollController _listController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _listController.addListener(_onListScroll);
+  }
+
+  Future<void> _autoFillLocationIfEmpty() async {
+    if (_isLocating) return;
+    if (locationController.text.trim().isNotEmpty) return;
+    setState(() => _isLocating = true);
+    try {
+      final text = await _locationService.getCurrentAddressString();
+      if (!mounted) return;
+      if (text != null && text.trim().isNotEmpty) {
+        locationController.text = text.trim();
+      }
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
+  }
+
+  void _onListScroll() {
+    if (!_hasMore || _isLoadingMore || _isLoading) return;
+    if (!_listController.hasClients) return;
+    final pos = _listController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 240) {
+      _loadMore();
+    }
   }
 
   Future<void> _loadData() async {
@@ -45,18 +81,34 @@ class _OffensesScreenState extends State<OffensesScreen> {
       _loadError = null;
     });
     try {
-      final offenses = await _offenseService.getOffenses();
+      _pageOffset = 0;
+      _hasMore = true;
+      final offenses = await _offenseService.getOffenses(
+        limit: _pageSize,
+        offset: _pageOffset,
+      );
       final fetchedTypes = await _offenseService.getOffenseTypes();
       final licenses = await _dashboardService.getAllLicenses();
 
+      log('OffensesScreen._loadData: Loaded ${licenses.length} licenses');
+      for (final license in licenses) {
+        log(
+          '  - License: ${license.registerNumber}, Owner: ${license.ownerName}',
+        );
+      }
+
       final defaultTypes = <OffenseType>[
         OffenseType(id: '1', label: 'Speeding', fine: 'MWK 25,000'),
-        OffenseType(id: '2', label: 'Driving without license', fine: 'MWK 50,000'),
+        OffenseType(
+          id: '2',
+          label: 'Driving without license',
+          fine: 'MWK 50,000',
+        ),
         OffenseType(id: '3', label: 'Reckless driving', fine: 'MWK 75,000'),
         OffenseType(id: '4', label: 'Drunk driving', fine: 'MWK 100,000'),
         OffenseType(id: '5', label: 'Dangerous driving', fine: 'MWK 150,000'),
       ];
-      
+
       // Remove duplicates by using a Set based on unique identifier
       final uniqueOffenses = offenses.fold<List<Offense>>([], (list, item) {
         if (!list.any((o) => o.id == item.id)) {
@@ -64,12 +116,14 @@ class _OffensesScreenState extends State<OffensesScreen> {
         }
         return list;
       });
-      
+
       setState(() {
         _offenses = uniqueOffenses;
         _offenseTypes = fetchedTypes.isNotEmpty ? fetchedTypes : defaultTypes;
         _allLicenses = licenses;
-        selectedOffenseId = _offenseTypes.isNotEmpty ? _offenseTypes.first.id : null;
+        selectedOffenseId =
+            _offenseTypes.isNotEmpty ? _offenseTypes.first.id : null;
+        _hasMore = offenses.length == _pageSize;
         _isLoading = false;
       });
     } catch (e) {
@@ -78,72 +132,129 @@ class _OffensesScreenState extends State<OffensesScreen> {
         _loadError = e.toString();
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load data: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load data: $e')));
       }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (!_hasMore || _isLoadingMore) return;
+    setState(() => _isLoadingMore = true);
+    try {
+      final nextOffset = _pageOffset + _pageSize;
+      final more = await _offenseService.getOffenses(
+        limit: _pageSize,
+        offset: nextOffset,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pageOffset = nextOffset;
+        _offenses = [
+          ..._offenses,
+          ...more.where((n) => !_offenses.any((o) => o.id == n.id)),
+        ];
+        _hasMore = more.length == _pageSize;
+      });
+    } catch (_) {
+      // ignore load-more errors; user can pull-to-refresh
+    } finally {
+      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
   Future<void> _submitOffense() async {
     if (_selectedLicense == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a license'), backgroundColor: AppTheme.warning),
+        const SnackBar(
+          content: Text('Please select a license'),
+          backgroundColor: AppTheme.warning,
+        ),
       );
       return;
     }
     if (locationController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a location'), backgroundColor: AppTheme.warning),
+        const SnackBar(
+          content: Text('Please enter a location'),
+          backgroundColor: AppTheme.warning,
+        ),
       );
       return;
     }
     if (selectedOffenseId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an offense type'), backgroundColor: AppTheme.warning),
+        const SnackBar(
+          content: Text('Please select an offense type'),
+          backgroundColor: AppTheme.warning,
+        ),
       );
       return;
     }
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: AppTheme.warning),
-            const SizedBox(width: 10),
-            const Text('Confirm Offense', style: TextStyle(fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildConfirmationRow('Driver', _selectedLicense!.ownerName),
-            _buildConfirmationRow('License', _selectedLicense!.registerNumber),
-            const Divider(color: AppTheme.cardBorder),
-            _buildConfirmationRow('Offense', _offenseTypes.firstWhere((t) => t.id == selectedOffenseId).label),
-            _buildConfirmationRow('Fine', _offenseTypes.firstWhere((t) => t.id == selectedOffenseId).fine),
-            _buildConfirmationRow('Location', locationController.text),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm Record'),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppTheme.cardDark,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: AppTheme.warning),
+                const SizedBox(width: 10),
+                const Text('Confirm Offense', style: TextStyle(fontSize: 18)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildConfirmationRow('Driver', _selectedLicense!.ownerName),
+                _buildConfirmationRow(
+                  'License',
+                  _selectedLicense!.registerNumber,
+                ),
+                const Divider(color: AppTheme.cardBorder),
+                _buildConfirmationRow(
+                  'Offense',
+                  _offenseTypes
+                      .firstWhere((t) => t.id == selectedOffenseId)
+                      .label,
+                ),
+                _buildConfirmationRow(
+                  'Fine',
+                  _offenseTypes
+                      .firstWhere((t) => t.id == selectedOffenseId)
+                      .fine,
+                ),
+                _buildConfirmationRow('Location', locationController.text),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.error,
+                ),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Confirm Record'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirmed != true) return;
 
     setState(() => _isSubmitting = true);
     try {
-      final selectedType = _offenseTypes.firstWhere((type) => type.id == selectedOffenseId);
+      final selectedType = _offenseTypes.firstWhere(
+        (type) => type.id == selectedOffenseId,
+      );
       await _offenseService.createOffense(
         name: _selectedLicense!.ownerName,
         licenseNumber: _selectedLicense!.registerNumber,
@@ -155,20 +266,27 @@ class _OffensesScreenState extends State<OffensesScreen> {
 
       // Reset form
       locationController.clear();
-      selectedOffenseId = _offenseTypes.isNotEmpty ? _offenseTypes.first.id : null;
+      selectedOffenseId =
+          _offenseTypes.isNotEmpty ? _offenseTypes.first.id : null;
       _selectedLicense = null;
       isRecording = false;
       await _loadData();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Offense recorded successfully'), backgroundColor: AppTheme.success),
+          const SnackBar(
+            content: Text('Offense recorded successfully'),
+            backgroundColor: AppTheme.success,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to record offense: $e'), backgroundColor: AppTheme.error),
+          SnackBar(
+            content: Text('Failed to record offense: $e'),
+            backgroundColor: AppTheme.error,
+          ),
         );
       }
     } finally {
@@ -182,7 +300,10 @@ class _OffensesScreenState extends State<OffensesScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+          Text(
+            label,
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          ),
           Flexible(
             child: Text(
               value,
@@ -198,6 +319,9 @@ class _OffensesScreenState extends State<OffensesScreen> {
   @override
   void dispose() {
     locationController.dispose();
+    _listController
+      ..removeListener(_onListScroll)
+      ..dispose();
     super.dispose();
   }
 
@@ -210,261 +334,454 @@ class _OffensesScreenState extends State<OffensesScreen> {
         onTap: (idx) {
           if (idx == 2) return;
           if (idx == 0) {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const DashboardScreen()),
+            );
           } else if (idx == 1) {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const VerifyScreen()));
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const VerifyScreen()),
+            );
           }
         },
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            const Text(
-              'Offenses',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Record and manage traffic violations',
-              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 24),
-
-            // Record Offense Section Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Record New Offense',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: isRecording 
-                        ? LinearGradient(colors: [AppTheme.error, AppTheme.error.withAlpha(204)])
-                        : LinearGradient(colors: [AppTheme.gold, AppTheme.goldLight]),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: () => setState(() => isRecording = !isRecording),
-                    icon: Icon(isRecording ? Icons.close : Icons.add, color: Colors.black),
-                    label: Text(isRecording ? 'Close' : 'Record', style: const TextStyle(color: Colors.black)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      elevation: 0,
+            // Fixed header section (does not disappear on list scroll)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Offenses',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Record Form
-            if (isRecording)
-              Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.cardDark,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.cardBorder),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Record and manage traffic violations',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // License Search
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
+                      const Text(
+                        'Record New Offense',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient:
+                              isRecording
+                                  ? LinearGradient(
+                                    colors: [
+                                      AppTheme.error,
+                                      AppTheme.error.withAlpha(204),
+                                    ],
+                                  )
+                                  : LinearGradient(
+                                    colors: [AppTheme.gold, AppTheme.goldLight],
+                                  ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ElevatedButton.icon(
                           onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => LicenseSearchDialog(
-                                licenses: _allLicenses,
-                                onLicenseSelected: (license) => setState(() => _selectedLicense = license as License?),
-                              ),
-                            );
+                            setState(() => isRecording = !isRecording);
+                            if (!isRecording) return;
+                            _autoFillLocationIfEmpty();
                           },
-                          icon: const Icon(Icons.search, size: 20),
-                          label: const Text('Search License', style: TextStyle(fontSize: 15)),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          icon: Icon(
+                            isRecording ? Icons.close : Icons.add,
+                            color: Colors.black,
+                          ),
+                          label: Text(
+                            isRecording ? 'Close' : 'Record',
+                            style: const TextStyle(color: Colors.black),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            elevation: 0,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // License Preview
-                      if (_selectedLicense != null)
-                        Column(
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (isRecording)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardDark,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.cardBorder),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            LicensePreviewCard(
-                              license: _selectedLicense!,
-                              onEdit: () {
-                                setState(() => _selectedLicense = null);
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => LicenseSearchDialog(
-                                    licenses: _allLicenses,
-                                    onLicenseSelected: (license) => setState(() => _selectedLicense = license as License?),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder:
+                                        (_) => LicenseSearchDialog(
+                                          licenses: _allLicenses,
+                                          onLicenseSelected:
+                                              (license) => setState(
+                                                () =>
+                                                    _selectedLicense =
+                                                        license as License?,
+                                              ),
+                                        ),
+                                  );
+                                },
+                                icon: const Icon(Icons.search, size: 20),
+                                label: const Text(
+                                  'Search License',
+                                  style: TextStyle(fontSize: 15),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
                                   ),
-                                );
-                              },
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 12),
+                            if (_selectedLicense != null)
+                              Column(
+                                children: [
+                                  LicensePreviewCard(
+                                    license: _selectedLicense!,
+                                    onEdit: () {
+                                      setState(() => _selectedLicense = null);
+                                      showDialog(
+                                        context: context,
+                                        builder:
+                                            (_) => LicenseSearchDialog(
+                                              licenses: _allLicenses,
+                                              onLicenseSelected:
+                                                  (license) => setState(
+                                                    () =>
+                                                        _selectedLicense =
+                                                            license as License?,
+                                                  ),
+                                            ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 14),
+                                ],
+                              ),
+                            const Text(
+                              'Location',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: locationController,
+                              decoration: InputDecoration(
+                                hintText: 'Enter offense location',
+                                prefixIcon: const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 20,
+                                ),
+                                suffixIcon: IconButton(
+                                  tooltip: 'Use current location',
+                                  onPressed: _isLocating
+                                      ? null
+                                      : () async {
+                                          locationController.clear();
+                                          await _autoFillLocationIfEmpty();
+                                        },
+                                  icon: _isLocating
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.my_location_rounded),
+                                ),
+                                filled: true,
+                                fillColor: AppTheme.background,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Offense Type',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.background,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppTheme.cardBorder),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: selectedOffenseId,
+                                  isExpanded: true,
+                                  dropdownColor: AppTheme.cardDark,
+                                  style: const TextStyle(
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                  hint: const Text('Select offense type'),
+                                  items:
+                                      _offenseTypes.map((type) {
+                                        return DropdownMenuItem<String>(
+                                          value: type.id,
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  type.label,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Flexible(
+                                                child: Text(
+                                                  type.fine,
+                                                  style: const TextStyle(
+                                                    color: AppTheme.gold,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                  onChanged:
+                                      (value) => setState(
+                                        () => selectedOffenseId = value,
+                                      ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed:
+                                    (_isSubmitting ||
+                                            _selectedLicense == null ||
+                                            locationController.text.isEmpty ||
+                                            selectedOffenseId == null)
+                                        ? null
+                                        : _submitOffense,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.error,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child:
+                                    _isSubmitting
+                                        ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                        : const Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.warning_amber_rounded,
+                                              size: 20,
+                                            ),
+                                            SizedBox(width: 10),
+                                            Text(
+                                              'Review & Record Offense',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                              ),
+                            ),
                           ],
                         ),
-
-                      // Location Field
-                      const Text('Location', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: locationController,
-                        decoration: InputDecoration(
-                          hintText: 'Enter offense location',
-                          prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
-                          filled: true,
-                          fillColor: AppTheme.background,
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Recorded Offenses',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // Offense Type
-                      const Text('Offense Type', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.background,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.cardBorder),
+                      Text(
+                        _isLoading ? '' : '${_offenses.length} loaded',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w600,
                         ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: selectedOffenseId,
-                            isExpanded: true,
-                            dropdownColor: AppTheme.cardDark,
-                            style: const TextStyle(color: AppTheme.textPrimary),
-                            hint: const Text('Select offense type'),
-                            items: _offenseTypes.map((type) {
-                              return DropdownMenuItem<String>(
-                                value: type.id,
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        type.label,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Scrollable list section
+            Expanded(
+              child:
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _loadError != null
+                      ? ListView(
+                        controller: _listController,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppTheme.error.withAlpha(26),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppTheme.error),
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: AppTheme.error,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Error loading data:\n$_loadError',
+                                  style: const TextStyle(color: AppTheme.error),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                      : _offenses.isEmpty
+                      ? ListView(
+                        controller: _listController,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(top: 12),
+                            padding: const EdgeInsets.all(40),
+                            decoration: BoxDecoration(
+                              color: AppTheme.cardDark,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_outlined,
+                                  size: 48,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                SizedBox(height: 12),
+                                Text(
+                                  'No offenses recorded yet',
+                                  style: TextStyle(color: AppTheme.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                      : ListView.separated(
+                        key: const PageStorageKey('offenses_list'),
+                        controller: _listController,
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                        itemCount: _offenses.length + 1,
+                        separatorBuilder:
+                            (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          if (index == _offenses.length) {
+                            if (_isLoadingMore) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 10),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
                                     ),
-                                    const SizedBox(width: 10),
-                                    Flexible(
-                                      child: Text(
-                                        type.fine,
-                                        style: const TextStyle(color: AppTheme.gold),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               );
-                            }).toList(),
-                            onChanged: (value) => setState(() => selectedOffenseId = value),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Submit Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: (_isSubmitting || _selectedLicense == null || locationController.text.isEmpty || selectedOffenseId == null)
-                              ? null
-                              : _submitOffense,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.error,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: _isSubmitting
-                              ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.warning_amber_rounded, size: 20),
-                                    SizedBox(width: 10),
-                                    Text('Review & Record Offense', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                                  ],
+                            }
+                            if (!_hasMore) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 10),
+                                child: Center(
+                                  child: Text(
+                                    'End of list',
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
-                        ),
+                              );
+                            }
+                            return SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
+                                onPressed: _loadMore,
+                                child: const Text('Load more'),
+                              ),
+                            );
+                          }
+                          return _buildOffenseCard(_offenses[index]);
+                        },
                       ),
-                    ],
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 28),
-
-            // Recent Offenses Section
-            const Text(
-              'Recent Offenses',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 16),
-
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else if (_loadError != null)
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppTheme.error.withAlpha(26),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.error),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.error_outline, color: AppTheme.error, size: 48),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Error loading data:\\n$_loadError',
-                      style: const TextStyle(color: AppTheme.error),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              )
-            else if (_offenses.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(40),
-                decoration: BoxDecoration(
-                  color: AppTheme.cardDark,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.warning_amber_outlined, size: 48, color: AppTheme.textSecondary),
-                      SizedBox(height: 12),
-                      Text('No offenses recorded yet', style: TextStyle(color: AppTheme.textSecondary)),
-                    ],
-                  ),
-                ),
-              )
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _offenses.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, index) => _buildOffenseCard(_offenses[index]),
-              ),
           ],
         ),
       ),
@@ -510,7 +827,9 @@ class _OffensesScreenState extends State<OffensesScreen> {
                 Row(
                   children: [
                     Icon(
-                      isPending ? Icons.pending_actions_rounded : Icons.check_circle_rounded,
+                      isPending
+                          ? Icons.pending_actions_rounded
+                          : Icons.check_circle_rounded,
                       color: Colors.white,
                       size: 18,
                     ),
@@ -553,7 +872,11 @@ class _OffensesScreenState extends State<OffensesScreen> {
                         color: AppTheme.gold.withAlpha(26),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.person_outline, color: AppTheme.gold, size: 20),
+                      child: const Icon(
+                        Icons.person_outline,
+                        color: AppTheme.gold,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -592,13 +915,20 @@ class _OffensesScreenState extends State<OffensesScreen> {
                         color: AppTheme.error.withAlpha(26),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.warning_amber_rounded, color: AppTheme.error, size: 16),
+                      child: const Icon(
+                        Icons.warning_amber_rounded,
+                        color: AppTheme.error,
+                        size: 16,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         offense.offenseType,
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],
@@ -606,12 +936,19 @@ class _OffensesScreenState extends State<OffensesScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined, size: 14, color: AppTheme.textSecondary),
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 14,
+                      color: AppTheme.textSecondary,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         offense.location,
-                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
                     ),
                   ],

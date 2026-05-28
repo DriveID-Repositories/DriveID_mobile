@@ -23,6 +23,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DashboardStats? _stats;
   bool _isLoading = true;
 
+  num _parseFine(dynamic fine) {
+    if (fine == null) return 0;
+    if (fine is num) return fine;
+    final cleaned = fine.toString().replaceAll(RegExp(r'[^0-9.]'), '');
+    return num.tryParse(cleaned) ?? 0;
+  }
+
+  String _formatMwk(num amount) {
+    final value = amount.round().toString();
+    final withCommas = value.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (m) => ',',
+    );
+    return 'MWK $withCommas';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -34,21 +50,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final isOnline = await SyncService().isOnline();
       if (!isOnline) {
         final cachedStats = _dashboardService.getCachedDashboardStats();
+        final localPendingFines = LocalDatabaseService.getPendingOffenses()
+            .fold<num>(0, (sum, row) => sum + _parseFine(row['fine']));
         if (!mounted) return;
         setState(() {
           if (cachedStats != null) {
             _stats = DashboardStats(
-              verificationsToday: cachedStats.verificationsToday + LocalDatabaseService.getPendingVerifications().length,
+              verificationsToday:
+                  cachedStats.verificationsToday +
+                  LocalDatabaseService.getPendingVerifications().length,
               offensesRecorded: cachedStats.offensesRecorded,
               totalVerifications: cachedStats.totalVerifications,
-              pendingOffenses: cachedStats.pendingOffenses + LocalDatabaseService.getPendingOffenses().length,
+              pendingOffenses:
+                  cachedStats.pendingOffenses +
+                  LocalDatabaseService.getPendingOffenses().length,
+              pendingFinesTotal: cachedStats.pendingFinesTotal + localPendingFines,
             );
           } else {
             _stats = DashboardStats(
-              verificationsToday: LocalDatabaseService.getPendingVerifications().length,
-              offensesRecorded: LocalDatabaseService.getPendingOffenses().length,
+              verificationsToday:
+                  LocalDatabaseService.getPendingVerifications().length,
+              offensesRecorded:
+                  LocalDatabaseService.getPendingOffenses().length,
               totalVerifications: 0,
               pendingOffenses: LocalDatabaseService.getPendingOffenses().length,
+              pendingFinesTotal: localPendingFines,
             );
           }
           _isLoading = false;
@@ -70,9 +96,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load stats: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load stats: $e')));
       }
     }
   }
@@ -126,7 +152,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         SizedBox(height: 4),
                         Text(
                           "Verify licenses & manage offenses",
-                          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -134,17 +163,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   StreamBuilder<List<ConnectivityResult>>(
                     stream: Connectivity().onConnectivityChanged,
                     builder: (context, snapshot) {
-                      final isOffline = snapshot.hasData && 
-                          snapshot.data!.isNotEmpty && 
+                      final isOffline =
+                          snapshot.hasData &&
+                          snapshot.data!.isNotEmpty &&
                           snapshot.data!.first == ConnectivityResult.none;
-                      
+
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: isOffline ? AppTheme.error.withAlpha(30) : AppTheme.success.withAlpha(30),
+                          color:
+                              isOffline
+                                  ? AppTheme.error.withAlpha(30)
+                                  : AppTheme.success.withAlpha(30),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isOffline ? AppTheme.error.withAlpha(100) : AppTheme.success.withAlpha(100),
+                            color:
+                                isOffline
+                                    ? AppTheme.error.withAlpha(100)
+                                    : AppTheme.success.withAlpha(100),
                           ),
                         ),
                         child: Row(
@@ -152,7 +191,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Icon(
                               isOffline ? Icons.wifi_off : Icons.wifi,
                               size: 14,
-                              color: isOffline ? AppTheme.error : AppTheme.success,
+                              color:
+                                  isOffline ? AppTheme.error : AppTheme.success,
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -160,7 +200,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: isOffline ? AppTheme.error : AppTheme.success,
+                                color:
+                                    isOffline
+                                        ? AppTheme.error
+                                        : AppTheme.success,
                               ),
                             ),
                           ],
@@ -179,7 +222,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Expanded(
                     child: _buildStatCard(
                       title: "Verifications Today",
-                      value: _isLoading ? "..." : (_stats?.verificationsToday.toString() ?? "0"),
+                      value:
+                          _isLoading
+                              ? "..."
+                              : (_stats?.verificationsToday.toString() ?? "0"),
                       icon: Icons.check_circle_outline,
                       color: AppTheme.success,
                     ),
@@ -188,7 +234,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Expanded(
                     child: _buildStatCard(
                       title: "Offenses Recorded",
-                      value: _isLoading ? "..." : (_stats?.offensesRecorded.toString() ?? "0"),
+                      value:
+                          _isLoading
+                              ? "..."
+                              : (_stats?.offensesRecorded.toString() ?? "0"),
                       icon: Icons.warning_amber_outlined,
                       color: AppTheme.warning,
                     ),
@@ -204,8 +253,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Expanded(
                     child: _buildStatCard(
                       title: "Fines Pending",
-                      value: _isLoading ? "..." : (_stats?.pendingOffenses.toString() ?? "0"),
-                      icon: Icons.attach_money,
+                      value:
+                          _isLoading
+                              ? "..."
+                              : _formatMwk(_stats?.pendingFinesTotal ?? 0),
+                      icon: Icons.pending_actions_rounded,
                       color: AppTheme.error,
                     ),
                   ),
@@ -213,7 +265,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Expanded(
                     child: _buildStatCard(
                       title: "Total Checks",
-                      value: _isLoading ? "..." : (_stats?.totalVerifications.toString() ?? "0"),
+                      value:
+                          _isLoading
+                              ? "..."
+                              : (_stats?.totalVerifications.toString() ?? "0"),
                       icon: Icons.search_outlined,
                       color: AppTheme.gold,
                     ),
@@ -233,7 +288,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Recent Activity Card
               Container(
                 width: double.infinity,
@@ -299,13 +354,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const VerifyScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const VerifyScreen(),
+                            ),
                           );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.gold,
                           foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 10,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -322,7 +382,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 20),
             ],
           ),
@@ -341,10 +401,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: color.withAlpha(102),
-          width: 1.5,
-        ),
+        border: Border.all(color: color.withAlpha(102), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: color.withAlpha(38),
@@ -391,5 +448,4 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
 }

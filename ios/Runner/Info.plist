@@ -54,5 +54,7 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DriveID uses your location to auto-fill the offense location.</string>
 </dict>
 </plist>

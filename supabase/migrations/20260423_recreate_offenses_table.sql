@@ -17,20 +17,22 @@ end $$;
 
 create table if not exists public.offenses (
   id uuid primary key default gen_random_uuid(),
-  name text not null,
-  license_number text not null,
+  name text,
+  registration_number text,
   offense_type_id uuid references public.offense_types(id) on delete set null,
-  offense_type text not null,
-  location text not null,
-  status text not null default 'Pending',
-  fine text not null,
+  offense_type text,
+  location text,
+  status text default 'Pending',
+  fine numeric,
+  recorded_by text,
+  license_class text,
   created_at timestamp with time zone not null default now(),
   constraint offenses_status_check
     check (status in ('Pending', 'Paid', 'Resolved', 'Cleared'))
 );
 
-create index if not exists offenses_license_number_idx
-  on public.offenses (license_number);
+create index if not exists offenses_registration_number_idx
+  on public.offenses (registration_number);
 
 create index if not exists offenses_created_at_idx
   on public.offenses (created_at desc);
@@ -47,26 +49,30 @@ begin
     insert into public.offenses (
       id,
       name,
-      license_number,
+      registration_number,
       offense_type_id,
       offense_type,
       location,
       status,
       fine,
+      recorded_by,
+      license_class,
       created_at
     )
     select
       coalesce(id, gen_random_uuid()),
       coalesce(name, 'Unknown Driver'),
-      coalesce(license_number, registration_number, register_number),
+      coalesce(registration_number, license_number, register_number),
       offense_type_id,
       coalesce(offense_type, 'Unspecified Offense'),
       coalesce(location, 'Unknown Location'),
       coalesce(status, 'Pending'),
-      coalesce(fine, amount, penalty_amount, penalty, 'TBD'),
+      nullif(regexp_replace(coalesce(fine::text, amount::text, penalty_amount::text, penalty::text, ''), '[^0-9\.]', '', 'g'), '')::numeric,
+      recorded_by,
+      license_class,
       coalesce(created_at, now())
     from public.offenses_backup
-    where coalesce(license_number, registration_number, register_number) is not null;
+    where coalesce(registration_number, license_number, register_number) is not null;
   end if;
 exception
   when undefined_column then

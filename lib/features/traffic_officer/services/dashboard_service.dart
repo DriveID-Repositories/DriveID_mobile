@@ -20,50 +20,121 @@ class DashboardService {
     'registration_number',
   ];
 
-  Future<Map<String, String>> _getDriverNamesById(
+  bool _isMissingColumnError(Object error, String expectedColumn) {
+    if (error is PostgrestException) {
+      return (error.code == '42703' ||
+          error.code == 'PGRST204' ||
+          error.message.contains('Could not find the'));
+    }
+    return false;
+  }
+
+  Future<Map<String, Map<String, String>>> _getDriverInfoById(
     Iterable<dynamic> driverIds,
   ) async {
-    final ids = driverIds
-        .map((id) => id?.toString())
-        .where((id) => id != null && id.isNotEmpty)
-        .cast<String>()
-        .toSet()
-        .toList();
+    final ids =
+        driverIds
+            .map((id) => id?.toString())
+            .where((id) => id != null && id.isNotEmpty)
+            .cast<String>()
+            .toSet()
+            .toList();
 
     if (ids.isEmpty) return {};
 
-    final response = await _client
-        .from('drivers')
-        .select('id, full_name')
-        .inFilter('id', ids)
-        .timeout(_requestTimeout, onTimeout: () => []);
+    // Some deployments don't have all photo columns; try progressively smaller selects.
+    // IMPORTANT: `driver_photo_url` is the canonical column in this project.
+    const selectCandidates = <String>[
+      'id, full_name, driver_photo_url, profile_picture_url, photo_url, avatar_url',
+      'id, full_name, driver_photo_url, photo_url, avatar_url',
+      'id, full_name, driver_photo_url, photo_url',
+      'id, full_name, driver_photo_url',
+      'id, full_name',
+    ];
 
-    final rows = (response as List<dynamic>?) ?? [];
-    return {
-      for (final row in rows)
-        (row['id']?.toString() ?? ''): row['full_name']?.toString() ?? '',
-    };
+    for (final select in selectCandidates) {
+      try {
+        final response = await _client
+            .from('drivers')
+            .select(select)
+            .inFilter('id', ids)
+            .timeout(_requestTimeout, onTimeout: () => []);
+
+        final rows = (response as List<dynamic>?) ?? [];
+        final result = <String, Map<String, String>>{};
+        for (final row in rows) {
+          final id = row['id']?.toString() ?? '';
+          if (id.isEmpty) continue;
+          final fullName = row['full_name']?.toString() ?? '';
+          final photoUrl =
+              (row['driver_photo_url'] ??
+                      row['profile_picture_url'] ??
+                      row['avatar_url'] ??
+                      row['photo_url'])
+                  ?.toString() ??
+              '';
+          result[id] = {
+            'full_name': fullName,
+            'photo_url': photoUrl,
+          };
+        }
+        return result;
+      } catch (e) {
+        // If missing a selected column, retry with a simpler select.
+        if (select.contains('driver_photo_url') &&
+                _isMissingColumnError(e, 'driver_photo_url') ||
+            select.contains('profile_picture_url') &&
+                _isMissingColumnError(e, 'profile_picture_url') ||
+            select.contains('avatar_url') &&
+                _isMissingColumnError(e, 'avatar_url') ||
+            select.contains('photo_url') && _isMissingColumnError(e, 'photo_url')) {
+          continue;
+        }
+        // If RLS blocks `drivers`, we still want licenses to load.
+        log('Could not fetch driver info (non-fatal): $e');
+        return {};
+      }
+    }
+
+    return {};
   }
 
   Future<License?> _buildLicenseFromRow(Map<String, dynamic> row) async {
-    final driverNames = await _getDriverNamesById([row['driver_id']]);
+    final driverInfo = await _getDriverInfoById([row['driver_id']]);
     final enrichedRow = Map<String, dynamic>.from(row);
-    enrichedRow['owner_name'] = driverNames[row['driver_id']?.toString()] ?? '';
-    return License.fromJson(enrichedRow);
-  }
-
-  bool _isMissingColumnError(Object error, String expectedColumn) {
-    if (error is PostgrestException) {
-      return (error.code == '42703' || error.code == 'PGRST204' || error.message.contains('Could not find the'));
+    final driverId = row['driver_id']?.toString() ?? '';
+    // Preserve any pre-enriched owner name when driver lookup isn't available.
+    final existingOwner = (enrichedRow['owner_name'] ?? '').toString().trim();
+    final resolvedOwner = (driverInfo[driverId]?['full_name'] ?? '').toString().trim();
+    if (resolvedOwner.isNotEmpty) {
+      enrichedRow['owner_name'] = resolvedOwner;
+    } else if (existingOwner.isEmpty) {
+      enrichedRow['owner_name'] = '';
     }
-    return false;
+
+    // If backend/row already includes photo info, keep it; otherwise enrich from drivers table.
+    final existingPhoto = (enrichedRow['profile_picture_url'] ??
+            enrichedRow['photo_url'] ??
+            enrichedRow['driver_photo_url'])
+        ?.toString()
+        .trim();
+    final photoUrl = (existingPhoto?.isNotEmpty == true)
+        ? existingPhoto
+        : driverInfo[driverId]?['photo_url']?.toString().trim();
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      // `License.fromJson` understands `profile_picture_url` / `photo_url`
+      enrichedRow['profile_picture_url'] = photoUrl;
+    }
+    return License.fromJson(enrichedRow);
   }
 
   Future<Map<String, dynamic>?> _getLicenseRow(String licenseNumber) async {
     final normalized = licenseNumber.trim();
     log('Searching for license: $normalized');
 
-    final backendRow = await AuthService.fetchLicenseForVerification(normalized);
+    final backendRow = await AuthService.fetchLicenseForVerification(
+      normalized,
+    );
     if (backendRow != null) {
       log('Found license via backend API: ${backendRow['id']}');
       return backendRow;
@@ -103,6 +174,8 @@ class DashboardService {
       final startOfDay = DateTime(today.year, today.month, today.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
+      const pendingStatuses = ['pending', 'Pending'];
+
       final futureVerificationsResponse = _client
           .from('verifications')
           .select()
@@ -125,7 +198,13 @@ class DashboardService {
       final futurePendingOffensesResponse = _client
           .from('offenses')
           .select()
-          .eq('status', 'Pending')
+          .inFilter('status', pendingStatuses)
+          .timeout(_requestTimeout, onTimeout: () => []);
+
+      final futurePendingFinesResponse = _client
+          .from('offenses')
+          .select('fine')
+          .inFilter('status', pendingStatuses)
           .timeout(_requestTimeout, onTimeout: () => []);
 
       final responses = await Future.wait([
@@ -133,18 +212,35 @@ class DashboardService {
         futureTotalVerificationsResponse,
         futureOffensesResponse,
         futurePendingOffensesResponse,
+        futurePendingFinesResponse,
       ]);
 
       final verificationsList = (responses[0] as List<dynamic>?) ?? [];
       final totalVerificationsList = (responses[1] as List<dynamic>?) ?? [];
       final offensesList = (responses[2] as List<dynamic>?) ?? [];
       final pendingOffensesList = (responses[3] as List<dynamic>?) ?? [];
+      final pendingFineRows = (responses[4] as List<dynamic>?) ?? [];
+
+      num pendingFinesTotal = 0;
+      for (final row in pendingFineRows) {
+        if (row is Map) {
+          final fine = row['fine'];
+          if (fine is num) {
+            pendingFinesTotal += fine;
+          } else {
+            final fineStr = fine?.toString() ?? '';
+            final cleaned = fineStr.replaceAll(RegExp(r'[^0-9.]'), '');
+            pendingFinesTotal += num.tryParse(cleaned) ?? 0;
+          }
+        }
+      }
 
       final stats = DashboardStats(
         verificationsToday: verificationsList.length,
         offensesRecorded: offensesList.length,
         totalVerifications: totalVerificationsList.length,
         pendingOffenses: pendingOffensesList.length,
+        pendingFinesTotal: pendingFinesTotal,
       );
       await LocalDatabaseService.cacheDashboardStats(stats.toJson());
       return stats;
@@ -162,10 +258,7 @@ class DashboardService {
   Future<void> recordVerification(String licenseNumber) async {
     final nowUtc = DateTime.now().toUtc().toIso8601String();
 
-    final payload = {
-      'license_number': licenseNumber,
-      'verified_at': nowUtc,
-    };
+    final payload = {'license_number': licenseNumber, 'verified_at': nowUtc};
 
     if (!await SyncService().isOnline()) {
       await LocalDatabaseService.savePendingVerification(payload);
@@ -175,14 +268,21 @@ class DashboardService {
     await recordVerificationDirectly(payload);
   }
 
-  Future<void> recordVerificationDirectly(Map<String, dynamic> basePayload) async {
-    final licenseNumber = basePayload['license_number'] ?? basePayload['registration_number'] ?? basePayload['register_number'];
+  Future<void> recordVerificationDirectly(
+    Map<String, dynamic> basePayload,
+  ) async {
+    final licenseNumber =
+        basePayload['license_number'] ??
+        basePayload['registration_number'] ??
+        basePayload['register_number'];
     if (licenseNumber == null || licenseNumber.toString().isEmpty) return;
 
     // Build clean payload with ONLY the columns that exist in verifications table
     final payload = {
       'registration_number': licenseNumber.toString().trim(),
-      'verified_at': basePayload['verified_at'] ?? DateTime.now().toUtc().toIso8601String(),
+      'verified_at':
+          basePayload['verified_at'] ??
+          DateTime.now().toUtc().toIso8601String(),
     };
 
     await _client.from('verifications').insert(payload);
@@ -194,9 +294,15 @@ class DashboardService {
   }) async {
     for (final column in _verificationIdentifierColumns) {
       try {
-        var query = _client.from('verifications').select().eq(column, licenseNumber);
+        var query = _client
+            .from('verifications')
+            .select()
+            .eq(column, licenseNumber);
         if (verifiedAfter != null) {
-          query = query.gte('verified_at', verifiedAfter.toUtc().toIso8601String());
+          query = query.gte(
+            'verified_at',
+            verifiedAfter.toUtc().toIso8601String(),
+          );
         }
 
         final response = await query
@@ -226,16 +332,19 @@ class DashboardService {
 
   Future<bool> isValidLicense(String licenseNumber) async {
     try {
-      final row = await SyncService().isOnline() 
-          ? await _getLicenseRow(licenseNumber)
-          : LocalDatabaseService.getLicense(licenseNumber);
-          
+      final row =
+          await SyncService().isOnline()
+              ? await _getLicenseRow(licenseNumber)
+              : LocalDatabaseService.getLicense(licenseNumber);
+
       if (row == null) return false;
 
       final status = (row['license_status'] ?? row['status'])?.toString() ?? '';
       if (!_isValidStatus(status)) return false;
 
-      final expiryDate = DateTime.tryParse(row['expiry_date']?.toString() ?? '');
+      final expiryDate = DateTime.tryParse(
+        row['expiry_date']?.toString() ?? '',
+      );
       if (expiryDate == null) return false;
 
       final now = DateTime.now();
@@ -248,13 +357,16 @@ class DashboardService {
 
   Future<License?> getLicenseDetails(String licenseNumber) async {
     try {
-      final row = await SyncService().isOnline() 
-          ? await _getLicenseRow(licenseNumber)
-          : LocalDatabaseService.getLicense(licenseNumber);
-          
+      final row =
+          await SyncService().isOnline()
+              ? await _getLicenseRow(licenseNumber)
+              : LocalDatabaseService.getLicense(licenseNumber);
+
       if (row != null) {
         if (!await SyncService().isOnline()) {
-           return License.fromJson(row); // Offline licenses already have owner_name included from cache
+          return License.fromJson(
+            row,
+          ); // Offline licenses already have owner_name included from cache
         }
         return _buildLicenseFromRow(row);
       }
@@ -266,21 +378,36 @@ class DashboardService {
 
   Future<List<Map<String, dynamic>>> getAllLicensesRaw() async {
     try {
+      log('getAllLicensesRaw: Starting to fetch licenses from database');
       final response = await _client
           .from('licenses')
           .select()
           .timeout(_requestTimeout, onTimeout: () => []);
       final licenses = (response as List<dynamic>?) ?? [];
-      
-      final driverNames = await _getDriverNamesById(
+      log('getAllLicensesRaw: Fetched ${licenses.length} licenses from server');
+
+      final driverInfo = await _getDriverInfoById(
         licenses.map((license) => license['driver_id']),
       );
+      log(
+        'getAllLicensesRaw: Fetched driver info for ${driverInfo.length} drivers',
+      );
 
-      return licenses.map((json) {
-        final enriched = Map<String, dynamic>.from(json as Map<String, dynamic>);
-        enriched['owner_name'] = driverNames[enriched['driver_id']?.toString()] ?? '';
-        return enriched;
-      }).toList();
+      final result =
+          licenses.map((json) {
+            final enriched = Map<String, dynamic>.from(
+              json as Map<String, dynamic>,
+            );
+            final driverId = enriched['driver_id']?.toString() ?? '';
+            enriched['owner_name'] = driverInfo[driverId]?['full_name'] ?? '';
+            final photoUrl = driverInfo[driverId]?['photo_url'];
+            if (photoUrl != null && photoUrl.trim().isNotEmpty) {
+              enriched['profile_picture_url'] = photoUrl.trim();
+            }
+            return enriched;
+          }).toList();
+      log('getAllLicensesRaw: Returning ${result.length} enriched licenses');
+      return result;
     } catch (e) {
       log('Error fetching all licenses raw: $e');
       throw Exception('Failed to fetch licenses: $e');
@@ -291,10 +418,18 @@ class DashboardService {
     try {
       if (!await SyncService().isOnline()) {
         final cached = LocalDatabaseService.getAllCachedLicenses();
+        log(
+          'getAllLicenses: Offline mode - Returning ${cached.length} cached licenses',
+        );
         return cached.map((json) => License.fromJson(json)).toList();
       }
       final raw = await getAllLicensesRaw();
-      return raw.map((json) => License.fromJson(json)).toList();
+      log(
+        'getAllLicenses: Online mode - Converting ${raw.length} raw licenses to License objects',
+      );
+      final result = raw.map((json) => License.fromJson(json)).toList();
+      log('getAllLicenses: Returning ${result.length} License objects');
+      return result;
     } catch (e) {
       log('Error fetching all licenses: $e');
       throw Exception('Failed to fetch licenses: $e');
@@ -304,7 +439,7 @@ class DashboardService {
   Future<bool> verifyAndRecordLicense(String licenseNumber) async {
     try {
       final isValid = await isValidLicense(licenseNumber);
-      
+
       // We still want to record the verification attempt regardless of whether the license is valid or not
       // This ensures the dashboard stats reflect all activity accurately
       try {

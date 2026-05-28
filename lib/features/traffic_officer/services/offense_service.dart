@@ -27,34 +27,62 @@ class OffenseService {
   }
 
   String _mapIdentifierKey(Map<String, dynamic> payload) {
-    if (payload.containsKey('registration_number')) return 'registration_number';
+    if (payload.containsKey('registration_number'))
+      return 'registration_number';
     if (payload.containsKey('license_number')) return 'license_number';
     return 'register_number';
+  }
+
+  /// Extracts numeric value from fine strings like "MWK 25,000" or "25000"
+  num _parseFineValue(dynamic fineValue) {
+    if (fineValue == null) return 0;
+
+    final fineStr = fineValue.toString().trim();
+    if (fineStr.isEmpty || fineStr == 'TBD') return 0;
+
+    // Remove common currency prefixes and whitespace
+    final cleaned =
+        fineStr
+            .replaceAll(RegExp(r'[A-Z]{3}\s*'), '') // MWK, USD, etc.
+            .replaceAll(
+              RegExp(r'[^\d.]'),
+              '',
+            ) // Remove all non-numeric except decimal
+            .trim();
+
+    return num.tryParse(cleaned) ?? 0;
   }
 
   Future<Map<String, dynamic>> _insertPayloadWithCompatibility(
     Map<String, dynamic> payload,
   ) async {
     // Build clean payload with ONLY the columns that likely exist in offenses table
-    final registration_number = payload['license_number'] ?? payload['registration_number'] ?? payload['register_number'];
-    
+    final registration_number =
+        payload['license_number'] ??
+        payload['registration_number'] ??
+        payload['register_number'];
+
     if (registration_number == null || registration_number.toString().isEmpty) {
       throw Exception('Registration/license number is required');
     }
+
+    final rawStatus = (payload['status'] ?? 'pending').toString();
+    final normalizedStatus = rawStatus.trim().toLowerCase();
 
     final cleanPayload = {
       'name': payload['name'] ?? 'Unknown',
       'registration_number': registration_number.toString().trim(),
       'offense_type': payload['offense_type'],
       'location': payload['location'],
-      'status': payload['status'] ?? 'Pending',
-      'fine': payload['fine'] ?? 'TBD',
-      'created_at': payload['created_at'] ?? DateTime.now().toUtc().toIso8601String(),
+      'status': normalizedStatus,
+      'fine': _parseFineValue(payload['fine']),
+      'created_at':
+          payload['created_at'] ?? DateTime.now().toUtc().toIso8601String(),
     };
 
     // Try with offense_type_id if provided
-    if (payload.containsKey('offense_type_id') && 
-        payload['offense_type_id'] != null && 
+    if (payload.containsKey('offense_type_id') &&
+        payload['offense_type_id'] != null &&
         (payload['offense_type_id'] as String).length > 10) {
       cleanPayload['offense_type_id'] = payload['offense_type_id'];
     }
@@ -69,7 +97,8 @@ class OffenseService {
       return Map<String, dynamic>.from(response);
     } catch (error) {
       // If insert failed, try without optional fields
-      if (error is PostgrestException && (error.code == '42703' || error.code == 'PGRST204')) {
+      if (error is PostgrestException &&
+          (error.code == '42703' || error.code == 'PGRST204')) {
         cleanPayload.remove('offense_type_id');
         try {
           final response = await _client
@@ -133,18 +162,26 @@ class OffenseService {
     }
   }
 
-  Future<List<Offense>> getOffenses() async {
+  Future<List<Offense>> getOffenses({int? limit, int? offset}) async {
     try {
       if (!await SyncService().isOnline()) {
         final pending = LocalDatabaseService.getPendingOffenses();
-        return pending.map((json) => Offense.fromJson(Map<String, dynamic>.from(json))).toList();
+        return pending
+            .map((json) => Offense.fromJson(Map<String, dynamic>.from(json)))
+            .toList();
       }
-      
-      final response = await _client
+
+      var query = _client
           .from('offenses')
           .select()
-          .order('created_at', ascending: false)
-          .timeout(_requestTimeout, onTimeout: () => []);
+          .order('created_at', ascending: false);
+
+      if (limit != null) {
+        final safeOffset = offset ?? 0;
+        query = query.range(safeOffset, safeOffset + limit - 1);
+      }
+
+      final response = await query.timeout(_requestTimeout, onTimeout: () => []);
       final offenses = (response as List<dynamic>?) ?? [];
       return offenses
           .map((json) => Offense.fromJson(json as Map<String, dynamic>))
@@ -158,14 +195,20 @@ class OffenseService {
     try {
       if (!await SyncService().isOnline()) {
         final pending = LocalDatabaseService.getPendingOffenses();
-        final filtered = pending.where((o) => 
-            o['license_number'] == licenseNumber ||
-            o['registration_number'] == licenseNumber ||
-            o['register_number'] == licenseNumber
-        ).toList();
-        return filtered.map((json) => Offense.fromJson(Map<String, dynamic>.from(json))).toList();
+        final filtered =
+            pending
+                .where(
+                  (o) =>
+                      o['license_number'] == licenseNumber ||
+                      o['registration_number'] == licenseNumber ||
+                      o['register_number'] == licenseNumber,
+                )
+                .toList();
+        return filtered
+            .map((json) => Offense.fromJson(Map<String, dynamic>.from(json)))
+            .toList();
       }
-      
+
       return await _fetchOffensesByIdentifier(licenseNumber);
     } catch (e) {
       throw Exception('Failed to fetch driver offenses: $e');
@@ -180,7 +223,10 @@ class OffenseService {
           .order('label')
           .timeout(_requestTimeout, onTimeout: () => []);
 
-      return (response as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
+      return (response as List<dynamic>?)
+              ?.map((e) => Map<String, dynamic>.from(e))
+              .toList() ??
+          [];
     } catch (_) {
       return [];
     }
@@ -191,7 +237,7 @@ class OffenseService {
       final cached = LocalDatabaseService.getCachedOffenseTypes();
       return cached.map((json) => OffenseType.fromJson(json)).toList();
     }
-    
+
     final raw = await getOffenseTypesRaw();
     log('OffenseService.getOffenseTypes raw response: $raw');
     await LocalDatabaseService.cacheOffenseTypes(raw);
@@ -212,14 +258,26 @@ class OffenseService {
         throw Exception('License not found - license number is invalid');
       }
 
+      final currentUser = await AuthService.currentUser;
+      final recordedBy =
+          currentUser?.email.isNotEmpty == true
+              ? currentUser!.email
+              : currentUser?.id;
+
       final payload = {
         'name': name,
-        'license_number': licenseNumber,
+        // Your Supabase `offenses` table uses `registration_number`
+        // (we keep compatibility in the insert helper as well).
+        'registration_number': licenseNumber,
         if (offenseTypeId.length > 10) 'offense_type_id': offenseTypeId,
         'offense_type': offenseType,
         'location': location,
-        'status': 'Pending',
+        'status': 'pending',
         'fine': fine,
+        if (recordedBy != null && recordedBy.toString().trim().isNotEmpty)
+          'recorded_by': recordedBy.toString().trim(),
+        if (license.licenseType.trim().isNotEmpty)
+          'license_class': license.licenseType.trim(),
         'created_at': DateTime.now().toUtc().toIso8601String(),
       };
 
@@ -252,13 +310,23 @@ class OffenseService {
         throw Exception('License not found - cannot record offense');
       }
 
+      final currentUser = await AuthService.currentUser;
+      final recordedBy =
+          currentUser?.email.isNotEmpty == true
+              ? currentUser!.email
+              : currentUser?.id;
+
       final payload = {
         'name': licenseOwnerName,
-        'license_number': licenseNumber,
+        'registration_number': licenseNumber,
         'offense_type': offenseType,
         'location': location,
-        'status': 'Pending',
+        'status': 'pending',
         'fine': fine,
+        if (recordedBy != null && recordedBy.toString().trim().isNotEmpty)
+          'recorded_by': recordedBy.toString().trim(),
+        if (license.licenseType.trim().isNotEmpty)
+          'license_class': license.licenseType.trim(),
         'created_at': DateTime.now().toUtc().toIso8601String(),
       };
 
@@ -279,7 +347,9 @@ class OffenseService {
         throw Exception('License must be verified before recording an offense');
       }
 
-      await _insertOffenseRecordWithSchemaFallback(payload).timeout(_requestTimeout);
+      await _insertOffenseRecordWithSchemaFallback(
+        payload,
+      ).timeout(_requestTimeout);
     } catch (e) {
       throw Exception('Failed to record offense: $e');
     }
@@ -291,7 +361,10 @@ class OffenseService {
 
   Future<void> updateOffenseStatus(String offenseId, String status) async {
     try {
-      await _client.from('offenses').update({'status': status}).eq('id', offenseId);
+      await _client
+          .from('offenses')
+          .update({'status': status})
+          .eq('id', offenseId);
     } catch (e) {
       throw Exception('Failed to update offense status: $e');
     }
